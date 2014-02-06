@@ -95,7 +95,7 @@ def port_open(address, port, protocol):
         return False
 
 def usage():
-    print 'Samba Share Enumerator'
+    print 'SMBMap - Samba Share Enumerator'
     print 'Shawn Evans - Shawn.Evans@knowledgeCG.com'
     print ''
     print '$ python %s -u jsmith -p password1 -d workgroup 192.168.0.1' % (sys.argv[0])
@@ -105,8 +105,8 @@ def usage():
     print '-u\t\tUsername'
     print '-p\t\tPassword'
     print '-d\t\tDomain name'
-    print '-r\t\tRecursively list all dirs, and files'
-    print '-R\t\tList contents of root only'
+    print '-R\t\tRecursively list all dirs, and files'
+    print '-r\t\tList contents of root only'
     print '-f\t\tFile name filter, -f "password"'
     print '-F\t\tFile content filter, -f "password"'
     print ''
