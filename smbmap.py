@@ -251,13 +251,17 @@ class SMBMap():
         pass
    
     def upload_file(self, src, dst): 
-        filename = src.split('/')[-1]   
-        share = dst.split('\\')[0]
+        dst = string.replace(dst,'/','\\')
+        dst = ntpath.normpath(dst)
+        dst = dst.split('\\')
+        share = dst[0]
+        dst = '\\'.join(dst[1:])
+        print share, dst
         if os.path.exists(src):
             print '[+] Starting upload: %s (%s bytes)' % (src, os.path.getsize(src))
             upFile = open(src, 'rb')
             try:
-                self.smbconn.putFile(dst, src, upFile.read)
+                self.smbconn.putFile(share, dst, upFile.read)
                 print '[+] Upload complete' 
             except:
                 print '[!] Error uploading file....zero clues...we\'ll just assume it was you'
