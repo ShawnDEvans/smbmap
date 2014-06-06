@@ -256,7 +256,6 @@ class SMBMap():
         dst = dst.split('\\')
         share = dst[0]
         dst = '\\'.join(dst[1:])
-        print share, dst
         if os.path.exists(src):
             print '[+] Starting upload: %s (%s bytes)' % (src, os.path.getsize(src))
             upFile = open(src, 'rb')
