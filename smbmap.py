@@ -241,7 +241,7 @@ class SMBMap():
             if 'STATUS_ACCESS_DENIED' in str(e):
                 print '[!] Error retrieving file, access denied'
             elif 'STATUS_INVALID_PARAMETER' in str(e):
-                print '[!] Error retrieving file, invali path'
+                print '[!] Error retrieving file, invalid path'
         except Exception as e:
             print '[!] Error retrieving file, unkown error'
             os.remove(filename)
@@ -249,13 +249,33 @@ class SMBMap():
     
     def exec_command(self, command):
         pass
-   
+    
+    def delete_file(self, path):
+        path = string.replace(path,'/','\\')
+        path = ntpath.normpath(path)
+        filename = path.split('\\')[-1]   
+        share = path.split('\\')[0]
+        path = path.replace(share, '')
+        path = path.replace(filename, '')
+        try:
+            self.smbconn.deleteFile(share, path + filename)
+            print '[+] File successfully deleted: %s%s%s' % (share, path, filename)
+        except SessionError as e:
+            if 'STATUS_ACCESS_DENIED' in str(e):
+                print '[!] Error deleting file, access denied'
+            elif 'STATUS_INVALID_PARAMETER' in str(e):
+                print '[!] Error deleting file, invalid path'
+        except Exception as e:
+            print '[!] Error deleting file, unkown error'
+            print e
+         
     def upload_file(self, src, dst): 
         dst = string.replace(dst,'/','\\')
         dst = ntpath.normpath(dst)
         dst = dst.split('\\')
         share = dst[0]
         dst = '\\'.join(dst[1:])
+        print share, dst
         if os.path.exists(src):
             print '[+] Starting upload: %s (%s bytes)' % (src, os.path.getsize(src))
             upFile = open(src, 'rb')
@@ -316,8 +336,10 @@ def usage():
     print '-f\t\tFile name filter, -f "password"'
     print '-F\t\tFile content filter, -f "password"'
     print '-D\t\t\'C$\\temp\\passwords.txt\' (download path)'
-    print '-U\t\t/temp/payload.exe  (note that this requires -T for a destiation share)'
-    print '-T\t\tC$\\temp\\payload.exe (destination upload path)'
+    print '--upload-src\t\t/temp/payload.exe  (note that this requires --upload-dst for a destiation share)'
+    print '--upload-dst\t\tC$\\temp\\payload.exe (destination upload path)'
+    print '--del\t\tC$\\temp\\msf.exe (delete a file)'
+    print '--skip\t\tSkip delete confirmation prompt'
     print ''
     sys.exit()
      
@@ -336,8 +358,12 @@ if __name__ == "__main__":
     dlPath = False
     src = False
     dst = False
+    delFile = False
     lsshare = False 
     lspath = False
+    skip = None
+    user = ''
+    passwd = ''
  
     for val in sys.argv:
         if val == '-?' or val == '--help':
@@ -363,25 +389,44 @@ if __name__ == "__main__":
             except:
                 print '[!] Missing download source'
                 sys.exit()
-        if val == '-T':
+        if val == '--upload-dst':
             try:
                 dst = sys.argv[counter+1]
             except:
                 print '[!] Missing destination upload path (-T)'
                 sys.exit()
-        if val == '-U':
+        if val == '--upload-src':
             try:
                 src = sys.argv[counter+1]
             except:
                 print '[!] Missing upload source'
                 sys.exit()
+        if val == '--del':
+            delFile = sys.argv[counter+1]
+        if val == '--skip':
+           skip = True 
         counter+=1
 
+    choice = ''  
+  
+    if delFile and skip == None: 
+        valid = ['Y','y','N','n'] 
+        while choice not in valid:
+            sys.stdout.write('[?] Confirm deletetion of file: %s [Y/n]? ' % (delFile))
+            choice = raw_input()
+            if choice == 'n' or choice == 'N':
+                print '[!] File deletion aborted...'
+                sys.exit()
+            elif choice == 'Y' or choice == 'y' or choice == '':
+                break
+            else:
+                print '[!] Invalid input'
+
     if (not src and dst): 
-        print '[!] Upload destination defined, but missing source (-U)'
+        print '[!] Upload destination defined, but missing source (--upload-src)'
         sys.exit()
     elif (not dst and src):
-        print '[!] Upload source defined, but missing destination (-T)'
+        print '[!] Upload source defined, but missing destination (--upload-dst)'
         sys.exit()
  
     if '-p' not in sys.argv:
@@ -427,9 +472,8 @@ if __name__ == "__main__":
         else:
             mysmb.login(user, passwd, domain, key)
         
-        print ''
-        print 'IP: %s:%d\tName: %s' % (key, host[key]['port'], host[key]['name'].ljust(50))
-        if not dlPath and not src:        
+        print '[+] IP: %s:%d\tName: %s' % (key, host[key]['port'], host[key]['name'].ljust(50))
+        if not dlPath and not src and not delFile:        
             print '\tDisk%s\tPermissions' % (' '.ljust(50))
             print '\t----%s\t-----------' % (' '.ljust(50))
 
@@ -443,6 +487,9 @@ if __name__ == "__main__":
                 mysmb.upload_file(src, dst)
                 sys.exit()
 
+            if delFile:
+                mysmb.delete_file(delFile)
+                sys.exit()
 
             shareList = [lsshare] if lsshare else mysmb.list_shares(False)
             for share in shareList:
