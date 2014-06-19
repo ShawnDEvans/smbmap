@@ -276,6 +276,7 @@ class SMBMap():
         self.username = username
         self.password = ntlmhash
         self.domain = domain
+        self.host = host
         
         lmhash, nthash = ntlmhash.split(':')    
     
@@ -296,7 +297,7 @@ class SMBMap():
         self.username = username
         self.password = password
         self.domain = domain
-    
+        self.host = host
         try:
             self.rpcconn = SMBConnection('*SMBSERVER', host, sess_port=139)
             self.rpcconn.login(username, password, domain)
@@ -314,7 +315,7 @@ class SMBMap():
         self.username = username
         self.password = ntlmhash
         self.domain = domain
-        
+        self.host = host
         lmhash, nthash = ntlmhash.split(':')    
     
         try:
@@ -473,7 +474,7 @@ class SMBMap():
     
     def exec_command(self, share, command):
         if self.is_ntlm(self.password):
-            hashes = password
+            hashes = self.password
         else:
             hashes = None 
         executer = CMDEXEC('445/SMB', self.username, self.password, self.domain, hashes, share, command)
@@ -521,7 +522,6 @@ class SMBMap():
     def is_ntlm(self, password):
         try:
             if len(password.split(':')) == 2:
-                print 'ntlm, perhaps'
                 lm, ntlm = password.split(':')
                 if len(lm) == 32 and len(ntlm) == 32:
                     return True
