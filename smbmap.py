@@ -16,6 +16,11 @@ import ntpath
 import cmd
 import os
 
+# A lot of this code was taken from Impacket's own examples
+# https://impacket.googlecode.com
+# Seriously, the most amazing Python library ever!!
+# Many thanks to that dev team
+
 OUTPUT_FILENAME = '__output'
 BATCH_FILENAME  = 'execute.bat'
 SMBSERVER_DIR   = '__tmp'
@@ -218,7 +223,7 @@ class CMDEXEC:
                 self.shell = RemoteShell(self.__share, rpctransport, self.__mode, self.__serviceName, self.__command)
                 self.shell.send_data(self.__command)
             except SessionError as e:
-                print '[!] Non admin share, attempting to start SMB server to store output'
+                print '[!] Not C$ share, attempting to start SMB server to store output'
                 smb_server = SMBServer()
                 smb_server.daemon = True
                 smb_server.start()
@@ -237,6 +242,10 @@ class CMDEXEC:
            
             
 class SMBMap():
+    KNOWN_PROTOCOLS = {
+        '139/SMB': (r'ncacn_np:%s[\pipe\svcctl]', 139),
+        '445/SMB': (r'ncacn_np:%s[\pipe\svcctl]', 445),
+        }
 
     def __init__(self):
         self.username = None
@@ -246,12 +255,14 @@ class SMBMap():
         self.smbconn = None 
         self.port = 445
         self.isLoggedIn = False
-
+     
     def login(self, username, password, domain, host):
         self.username = username
         self.password = password
         self.domain = domain
         self.host = host
+        if self.is_ntlm(password):
+            self.lmhash, self.nthash = password.split(':')
         
         try:
             self.smbconn = SMBConnection(host, host, sess_port=self.port)
