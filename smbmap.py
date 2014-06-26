@@ -565,7 +565,7 @@ def signal_handler(signal, frame):
 
 def usage():
     print 'SMBMap - Samba Share Enumerator'
-    print 'Shawn Evans - Shawn.Evans@knowledgeCG.com'
+    print 'Shawn Evans - Shawn.Evans@gmail.com'
     print ''
     print '$ python %s -u jsmith -p password1 -d workgroup -h 192.168.0.1' % (sys.argv[0])
     print '$ python %s -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -h 172.16.0.20' % (sys.argv[0]) 
