@@ -606,7 +606,7 @@ if __name__ == "__main__":
     skip = None
     user = ''
     passwd = ''
-    patter = ''
+    pattern = ''
      
     for val in sys.argv:
         if val == '-?' or val == '--help':
