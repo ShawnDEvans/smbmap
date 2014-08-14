@@ -21,9 +21,9 @@ import os
 # Seriously, the most amazing Python library ever!!
 # Many thanks to that dev team
 
-OUTPUT_FILENAME = '__output'
-BATCH_FILENAME  = 'execute.bat'
-SMBSERVER_DIR   = '__tmp'
+OUTPUT_FILENAME = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10))
+BATCH_FILENAME  = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10)) + '.bat'
+SMBSERVER_DIR   = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10))
 DUMMY_SHARE     = 'TMP'
 
 class SMBServer(Thread):
@@ -222,8 +222,11 @@ class CMDEXEC:
             try:
                 self.shell = RemoteShell(self.__share, rpctransport, self.__mode, self.__serviceName, self.__command)
                 self.shell.send_data(self.__command)
-            except (SessionError ), e:
-                print '[!] Not C$ share, attempting to start SMB server to store output'
+            except (SessionError), e:
+                if 'STATUS_SHARING_VIOLATION' in str(e):
+                    print '[!] Error encountered, sharing violation, unable to retrieve output'
+                    sys.exit(1)
+                print '[!] Error accessing C$, attempting to start SMB server to store output'
                 smb_server = SMBServer()
                 smb_server.daemon = True
                 smb_server.start()
@@ -300,6 +303,7 @@ class SMBMap():
                 print '[+] Guest RCP session established...'
             else:
                 print '[+] User RCP session establishd...'
+            return True
 
         except Exception as e:
             print '[!] RPC Authentication error occured'
@@ -318,9 +322,11 @@ class SMBMap():
                 print '[+] Guest RCP session established...'
             else:
                 print '[+] User RCP session establishd...'
-
+            return True
+        
         except Exception as e:
             print '[!] RPC Authentication error occured'
+            return False
             sys.exit()
  
     def login_hash(self, username, ntlmhash, domain, host):
@@ -338,22 +344,19 @@ class SMBMap():
                 print '[+] Guest session established...'
             else:
                 print '[+] User session establishd...'
+            return True
 
         except Exception as e:
             print '[!] Authentication error occured'
+            return False
             sys.exit()   
  
-    def find_open_ports(self, port, protocol):    
-        result = 1 
+    def find_open_ports(self, address, port):    
+        result = 1
         try:
-            if protocol == 'tcp':
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(.3)
-                result = sock.connect_ex((address,port))
-            else:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.settimeout(.3)
-                result = sock.connect_ex((address, port))
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((address,port))
             if result == 0:
                 sock.close()
                 return True
@@ -392,7 +395,7 @@ class SMBMap():
                                     if fileMatch:
                                         print '[+] Match found, downloading %s' % (filename) 
                                         self.download_file('%s%s/%s' % (share, pwd, filename))
-                                print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
+                            print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
                         except SessionError as e:
                             continue
                         except Exception as e:
@@ -473,6 +476,8 @@ class SMBMap():
                 print '[!] Error retrieving file, access denied'
             elif 'STATUS_INVALID_PARAMETER' in str(e):
                 print '[!] Error retrieving file, invalid path'
+            elif 'STATUS_SHARING_VIOLATION' in str(e):
+                print '[!] Error retrieving file, sharing violation'
         except Exception as e:
             print '[!] Error retrieving file, unkown error'
             os.remove(filename)
@@ -501,6 +506,11 @@ class SMBMap():
                 print '[!] Error deleting file, access denied'
             elif 'STATUS_INVALID_PARAMETER' in str(e):
                 print '[!] Error deleting file, invalid path'
+            elif 'STATUS_SHARING_VIOLATION' in str(e):
+                print '[!] Error retrieving file, sharing violation'
+            else:
+                print '[!] Error deleting file, unkown error'
+                print e
         except Exception as e:
             print '[!] Error deleting file, unkown error'
             print e
@@ -566,6 +576,7 @@ def usage():
     print '$ python %s -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -h 172.16.0.20' % (sys.argv[0]) 
     print '$ cat smb_ip_list.txt | python %s -u jsmith -p password1 -d workgroup' % (sys.argv[0])
     print ''
+    print '-P\t\tport (default 445), ex 139'
     print '-h\t\tHostname or IP'
     print '-u\t\tUsername, if omitted null session assumed'
     print '-p\t\tPassword or NTLM hash' 
@@ -602,6 +613,7 @@ if __name__ == "__main__":
     lsshare = False 
     lspath = False
     command= False
+    port = False
     share = False
     skip = None
     user = ''
@@ -632,6 +644,8 @@ if __name__ == "__main__":
             share = sys.argv[counter+1]
         if val == '-A':
             pattern = sys.argv[counter+1]
+        if val == '-P':
+            port = sys.argv[counter+1]
         if val == '-D':
             try:
                 dlPath = sys.argv[counter+1]
@@ -699,29 +713,31 @@ if __name__ == "__main__":
     else:
         print '[!] Host not defined'
         sys.exit()
-    
-    print '[+] Finding open SMB ports....'
-    socket.setdefaulttimeout(1)
-    if isFile:
-        for i in ip:
-            try:
-                port = 445
-                if port:
-                    try:
-                        host[i.strip()] = { 'name': socket.getnameinfo(i.strip(), port) , 'port' : port }
-                    except:
-                        host[i.strip()] = { 'name': 'unkown' , 'port' : port }
-            except:
-                continue
-    else:
-        port = 445 
-        if port:
-            try:
-                #host[ip.strip()] = { 'name' : socket.gethostbyaddr(ip)[0], 'port' : port }
-                host[ip.strip()] = { 'name' : socket.getnameinfo(i.strip(), port), 'port' : port }
-            except:
-                host[ip.strip()] = { 'name' : 'unkown' , 'port' : port }
-    
+   
+    if not port:
+        port = 445
+
+    if mysmb.find_open_ports(ip, int(port)):
+        print '[+] Finding open SMB ports....'
+        socket.setdefaulttimeout(1)
+        if isFile:
+            for i in ip:
+                try:
+                    if port:
+                        try:
+                            host[i.strip()] = { 'name': socket.getnameinfo(i.strip(), port) , 'port' : port }
+                        except:
+                            host[i.strip()] = { 'name': 'unkown' , 'port' : port }
+                except:
+                    continue
+        else:
+            if port:
+                try:
+                    #host[ip.strip()] = { 'name' : socket.gethostbyaddr(ip)[0], 'port' : port }
+                    host[ip.strip()] = { 'name' : socket.getnameinfo(i.strip(), port), 'port' : port }
+                except:
+                    host[ip.strip()] = { 'name' : 'unkown' , 'port' : port }
+            
     for key in host.keys():
         if mysmb.is_ntlm(passwd):
             print '[+] Hash detected, using pass-the-hash to authentiate' 
@@ -732,7 +748,7 @@ if __name__ == "__main__":
             print '[!] Authentication error on %s' % (key)
             continue 
         
-        print '[+] IP: %s:%d\tName: %s' % (key, host[key]['port'], host[key]['name'].ljust(50))
+        print '[+] IP: %s:%s\tName: %s' % (key, host[key]['port'], host[key]['name'].ljust(50))
         if not dlPath and not src and not delFile and not command:        
             print '\tDisk%s\tPermissions' % (' '.ljust(50))
             print '\t----%s\t-----------' % (' '.ljust(50))
