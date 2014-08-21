@@ -15,6 +15,7 @@ from impacket.dcerpc import transport, svcctl, srvsvc
 import ntpath
 import cmd
 import os
+import re
 
 # A lot of this code was taken from Impacket's own examples
 # https://impacket.googlecode.com
@@ -222,7 +223,7 @@ class CMDEXEC:
             try:
                 self.shell = RemoteShell(self.__share, rpctransport, self.__mode, self.__serviceName, self.__command)
                 self.shell.send_data(self.__command)
-            except (SessionError), e:
+            except SessionError as e:
                 if 'STATUS_SHARING_VIOLATION' in str(e):
                     print '[!] Error encountered, sharing violation, unable to retrieve output'
                     sys.exit(1)
@@ -236,6 +237,7 @@ class CMDEXEC:
                 self.shell.send_data(self.__command)
                 smb_server.stop() 
             except (Exception, KeyboardInterrupt), e:
+                print '[!] Insufficient privileges, unable to execute code' 
                 print e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -397,11 +399,12 @@ class SMBMap():
                                         self.download_file('%s%s/%s' % (share, pwd, filename))
                             print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
                         except SessionError as e:
+                            print e
                             continue
                         except Exception as e:
                             print e
 
-                    for smbItem in pathList[root]: 
+                    for smbItem in pathList[root]:
                         try:
                             filename = smbItem.get_longname()
                             if smbItem.is_directory() > 0 and filename != '.' and filename != '..':
@@ -409,7 +412,7 @@ class SMBMap():
                                 subPath = self.pathify(subPath)
                                 pathList[subPath] = self.smbconn.listPath(share, subPath)
                                 if len(pathList[subPath]) > 2:
-                                    self.list_path_recursive(share, '%s/%s' % (pwd, filename), wildcard, pathList)
+                                    self.list_path_recursive(share, '%s/%s' % (pwd, filename), wildcard, pathList, pattern)
 
                         except SessionError as e:
                             continue
@@ -709,6 +712,7 @@ if __name__ == "__main__":
         ip = ipArg
     elif not sys.stdin.isatty():
         isFile = True
+        print '[+] Reading from stdin'
         ip = sys.stdin.readlines()
     else:
         print '[!] Host not defined'
@@ -716,28 +720,27 @@ if __name__ == "__main__":
    
     if not port:
         port = 445
-
-    if mysmb.find_open_ports(ip, int(port)):
-        print '[+] Finding open SMB ports....'
-        socket.setdefaulttimeout(1)
-        if isFile:
-            for i in ip:
-                try:
-                    if port:
-                        try:
-                            host[i.strip()] = { 'name': socket.getnameinfo(i.strip(), port) , 'port' : port }
-                        except:
-                            host[i.strip()] = { 'name': 'unkown' , 'port' : port }
-                except:
-                    continue
-        else:
+    print '[+] Finding open SMB ports....'
+    socket.setdefaulttimeout(2)
+    if isFile:
+        for i in ip:
+            try:
+                if mysmb.find_open_ports(i.strip(), int(port)):
+                    try:
+                        host[i.strip()] = { 'name': socket.getnameinfo(i.strip(), port) , 'port' : port }
+                    except:
+                        host[i.strip()] = { 'name': 'unkown' , 'port' : port }
+            except Exception as e:
+                print e
+                continue
+    else:
+        if mysmb.find_open_ports(ip, int(port)):
             if port:
                 try:
                     #host[ip.strip()] = { 'name' : socket.gethostbyaddr(ip)[0], 'port' : port }
                     host[ip.strip()] = { 'name' : socket.getnameinfo(i.strip(), port), 'port' : port }
                 except:
                     host[ip.strip()] = { 'name' : 'unkown' , 'port' : port }
-            
     for key in host.keys():
         if mysmb.is_ntlm(passwd):
             print '[+] Hash detected, using pass-the-hash to authentiate' 
