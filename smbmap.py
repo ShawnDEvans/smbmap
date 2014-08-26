@@ -256,7 +256,6 @@ class SMBMap():
         self.username = None
         self.password = None
         self.domain = None
-        self.rpcconn = None
         self.smbconn = None 
         self.port = 445
         self.isLoggedIn = False
@@ -287,7 +286,7 @@ class SMBMap():
         self.smbconn.logoff()
 
     def logout_rpc(self):
-        self.rpcconn.logoff() 
+        self.smbconn.logoff() 
                    
     def login_rpc_hash(self, username, ntlmhash, domain, host):
         self.username = username
@@ -298,10 +297,10 @@ class SMBMap():
         lmhash, nthash = ntlmhash.split(':')    
     
         try:
-            self.rpcconn = SMBConnection('*SMBSERVER', host, sess_port=139)
-            self.rpcconn.login(username, '', domain, lmhash=lmhash, nthash=nthash)
+            self.smbconn = SMBConnection('*SMBSERVER', host, sess_port=139)
+            self.smbconn.login(username, '', domain, lmhash=lmhash, nthash=nthash)
             
-            if self.rpcconn.isGuestSession() > 0:
+            if self.smbconn.isGuestSession() > 0:
                 print '[+] Guest RCP session established...'
             else:
                 print '[+] User RCP session establishd...'
@@ -311,16 +310,16 @@ class SMBMap():
             print '[!] RPC Authentication error occured'
             sys.exit()
      
-    def login_rpc(self, usenrame, password, domain, host):
+    def login_rpc(self, username, password, domain, host):
         self.username = username
         self.password = password
         self.domain = domain
         self.host = host
         try:
-            self.rpcconn = SMBConnection('*SMBSERVER', host, sess_port=139)
-            self.rpcconn.login(username, password, domain)
+            self.smbconn = SMBConnection('*SMBSERVER', host, sess_port=139)
+            self.smbconn.login(username, password, domain)
             
-            if self.rpcconn.isGuestSession() > 0:
+            if self.smbconn.isGuestSession() > 0:
                 print '[+] Guest RCP session established...'
             else:
                 print '[+] User RCP session establishd...'
@@ -551,20 +550,24 @@ class SMBMap():
 
     def get_version(self):
         try:
-            rpctransport = transport.SMBTransport(self.rpcconn.getServerName(), self.rpcconn.getRemoteHost(), filename = r'\srvsvc', smb_connection = self.rpcconn)
+            rpctransport = transport.SMBTransport(self.smbconn.getServerName(), self.smbconn.getRemoteHost(), filename = r'\srvsvc', smb_connection = self.smbconn)
             dce = rpctransport.get_dce_rpc()
             dce.connect()
             dce.bind(srvs.MSRPC_UUID_SRVS)
-            resp = srvs.hNetrServerGetInfo(dce, 102)
-
+            resp = srvs.NetrServerGetInfo(dce, 102)
+            
             print "Version Major: %d" % resp['InfoStruct']['ServerInfo102']['sv102_version_major']
             print "Version Minor: %d" % resp['InfoStruct']['ServerInfo102']['sv102_version_minor']
             print "Server Name: %s" % resp['InfoStruct']['ServerInfo102']['sv102_name']
             print "Server Comment: %s" % resp['InfoStruct']['ServerInfo102']['sv102_comment']
             print "Server UserPath: %s" % resp['InfoStruct']['ServerInfo102']['sv102_userpath']
             print "Simultaneous Users: %d" % resp['InfoStruct']['ServerInfo102']['sv102_users']
-        except:
+        except Exception as e:
             print '[!] RPC Access denied...oh well'
+            print e
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
             sys.exit()
 
 def signal_handler(signal, frame):
@@ -720,6 +723,9 @@ if __name__ == "__main__":
    
     if not port:
         port = 445
+    if '-v' in sys.argv:
+        port = 139
+
     print '[+] Finding open SMB ports....'
     socket.setdefaulttimeout(2)
     if isFile:
@@ -741,16 +747,27 @@ if __name__ == "__main__":
                     host[ip.strip()] = { 'name' : socket.getnameinfo(i.strip(), port), 'port' : port }
                 except:
                     host[ip.strip()] = { 'name' : 'unkown' , 'port' : port }
+
     for key in host.keys():
         if mysmb.is_ntlm(passwd):
-            print '[+] Hash detected, using pass-the-hash to authentiate' 
-            success = mysmb.login_hash(user, passwd, domain, key)
+            print '[+] Hash detected, using pass-the-hash to authentiate'
+            if host[key]['port'] == 445: 
+                success = mysmb.login_hash(user, passwd, domain, key)
+            else:
+                success = mysbm.login_rpc_hash(user, passwd, domain, key)
         else:
-            success = mysmb.login(user, passwd, domain, key)
+            if host[key]['port'] == 445:
+                success = mysmb.login(user, passwd, domain, key)
+            else:
+                success = mysmb.login_rpc(user, passwd, domain, key)
         if not success:
             print '[!] Authentication error on %s' % (key)
-            continue 
-        
+            continue
+ 
+        if '-v' in sys.argv:
+            mysmb.get_version()
+            sys.exit()
+ 
         print '[+] IP: %s:%s\tName: %s' % (key, host[key]['port'], host[key]['name'].ljust(50))
         if not dlPath and not src and not delFile and not command:        
             print '\tDisk%s\tPermissions' % (' '.ljust(50))
@@ -819,6 +836,8 @@ if __name__ == "__main__":
                     error = 0
             mysmb.logout() 
 
+        except SessionError as e:
+            print '[!] Access Denied'
         except Exception as e:
             print e
             exc_type, exc_obj, exc_tb = sys.exc_info()
