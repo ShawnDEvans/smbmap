@@ -26,6 +26,7 @@ OUTPUT_FILENAME = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklm
 BATCH_FILENAME  = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10)) + '.bat'
 SMBSERVER_DIR   = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10))
 DUMMY_SHARE     = 'TMP'
+PERM_DIR = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10))
 
 class SMBServer(Thread):
     def __init__(self):
@@ -243,7 +244,6 @@ class CMDEXEC:
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print(exc_type, fname, exc_tb.tb_lineno)
                 sys.stdout.flush()
-                sys.exit(1)
            
             
 class SMBMap():
@@ -271,7 +271,7 @@ class SMBMap():
         try:
             self.smbconn = SMBConnection(host, host, sess_port=self.port)
             self.smbconn.login(username, password, domain=self.domain)
-            
+             
             if self.smbconn.isGuestSession() > 0:
                 print '[+] Guest SMB session established...'
             else:
@@ -280,6 +280,7 @@ class SMBMap():
 
         except Exception as e:
             print '[!] Authentication error occured'
+            print e
             return False
  
     def logout(self):
@@ -470,7 +471,7 @@ class SMBMap():
         out = open(ntpath.basename('%s/%s' % (os.getcwd(), '%s_%s' % (filename, path.replace('\\','_')))),'wb')
         try:
             dlFile = self.smbconn.listPath(share, path)
-            print '[+] Starting download: %s (%s bytes)' % ('\%s%s' % (share, path), dlFile[0].get_filesize())
+            print '[+] Starting download: %s (%s bytes)' % ('%s%s' % (share, path), dlFile[0].get_filesize())
             self.smbconn.getFile(share, path, out.write)
             print '[+] File output to: %s/%s' % (os.getcwd(), filename)
         except SessionError as e:
@@ -523,7 +524,6 @@ class SMBMap():
         dst = dst.split('\\')
         share = dst[0]
         dst = '\\'.join(dst[1:])
-        print share, dst
         if os.path.exists(src):
             print '[+] Starting upload: %s (%s bytes)' % (src, os.path.getsize(src))
             upFile = open(src, 'rb')
@@ -531,7 +531,7 @@ class SMBMap():
                 self.smbconn.putFile(share, dst, upFile.read)
                 print '[+] Upload complete' 
             except:
-                print '[!] Error uploading file....zero clues...we\'ll just assume it was you'
+                print '[!] Error uploading file, you need to include destination file name in the path'
             upFile.close() 
         else:
             print '[!] Invalid source. File does not exist'
@@ -554,7 +554,7 @@ class SMBMap():
             dce = rpctransport.get_dce_rpc()
             dce.connect()
             dce.bind(srvs.MSRPC_UUID_SRVS)
-            resp = srvs.NetrServerGetInfo(dce, 102)
+            resp = srvs.hNetrServerGetInfo(dce, 102)
             
             print "Version Major: %d" % resp['InfoStruct']['ServerInfo102']['sv102_version_major']
             print "Version Minor: %d" % resp['InfoStruct']['ServerInfo102']['sv102_version_minor']
@@ -591,7 +591,7 @@ def usage():
     print '-d\t\tDomain name (default WORKGROUP)'
     print '-R\t\tRecursively list dirs, and files (no share\path lists ALL shares), ex. \'C$\\Finance\''
     print '-A\t\tDefine a file name pattern (regex), that auto downloads a file on a match (requires -R), ex "([wW]eb|[Gg]lobal).(asax|config)"'
-    print '-r\t\tList contents of root only'
+    print '-r\t\tList contents of directory, default is to list root of all shares'
     print '-F\t\tFile content filter, -f "password" (feature pending)'
     print '-D\t\tDownload path, ex. \'C$\\temp\\passwords.txt\''
     print '--upload-src\tFile upload source, ex \'/temp/payload.exe\'  (note that this requires --upload-dst for a destiation share)'
@@ -636,6 +636,13 @@ if __name__ == "__main__":
                 lspath = '\\'.join(lspath[1:])
             except:
                 continue
+        if val == '-r':
+            try:
+                lspath = sys.argv[counter+1].replace('/','\\').split('\\')
+                lsshare = lspath[0]
+                lspath = '\\'.join(lspath[1:])
+            except:
+                continue
         if val == '-u':
             user = sys.argv[counter+1]
         if val == '-x':
@@ -662,7 +669,7 @@ if __name__ == "__main__":
             try:
                 dst = sys.argv[counter+1]
             except:
-                print '[!] Missing destination upload path (-T)'
+                print '[!] Missing destination upload path (--upload-dst)'
                 sys.exit()
         if val == '--upload-src':
             try:
@@ -764,11 +771,12 @@ if __name__ == "__main__":
             print '[!] Authentication error on %s' % (key)
             continue
  
-        if '-v' in sys.argv:
-            mysmb.get_version()
-            sys.exit()
  
         print '[+] IP: %s:%s\tName: %s' % (key, host[key]['port'], host[key]['name'].ljust(50))
+        
+        if '-v' in sys.argv:
+            mysmb.get_version()
+        
         if not dlPath and not src and not delFile and not command:        
             print '\tDisk%s\tPermissions' % (' '.ljust(50))
             print '\t----%s\t-----------' % (' '.ljust(50))
@@ -796,13 +804,21 @@ if __name__ == "__main__":
                 pathList = {}
                 canWrite = False
                 try:
-                    root = string.replace('/asdf','/','\\')
+                    root = string.replace('/%s' % (PERM_DIR),'/','\\')
                     root = ntpath.normpath(root)
                     mysmb.create_dir(share, root)
                     print '\t%s\tREAD, WRITE' % (share.ljust(50))
                     canWrite = True
-                    mysmb.remove_dir(share, root)
+                    try:
+                        mysmb.remove_dir(share, root)
+                    except:
+                        print '\t[!] Unable to remove test directory at \\\\%s\\%s%s, plreae remove manually' % (key, share, root)
                 except Exception as e:
+                    #print e
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    #print(exc_type, fname, exc_tb.tb_lineno)
+                    sys.stdout.flush()
                     canWrite = False
 
                 if canWrite == False:
@@ -822,7 +838,12 @@ if __name__ == "__main__":
                         resultFilter = ''
 
                     if '-r' in sys.argv:
-                        dirList = mysmb.list_path(share, path, True)
+                        if lsshare and lspath:
+                            dirList = mysmb.list_path(lsshare, lspath, True)
+                            sys.exit()
+                        else:
+                            dirList = mysmb.list_path(share, path, True)
+
                     elif '-R' in sys.argv:
                         if lsshare and lspath:
                             dirList = mysmb.list_path_recursive(lsshare, lspath, '*', pathList, pattern)
@@ -842,5 +863,3 @@ if __name__ == "__main__":
             print e
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
-            sys.exit() 
