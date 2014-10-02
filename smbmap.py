@@ -71,7 +71,7 @@ class SMBServer(Thread):
         try:
             os.mkdir(SMBSERVER_DIR)
         except Exception, e:
-            print e
+            print '[!]', e
             pass
         print '[*] Setting up SMB Server'
         self.smb.processConfigFile()
@@ -103,7 +103,7 @@ class RemoteShell():
         try:
             dce.connect()
         except Exception, e:
-            print e
+            print '[!]', e
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(exc_type, fname, exc_tb.tb_lineno)
@@ -141,7 +141,7 @@ class RemoteShell():
            self.rpcsvc.StopService(service)
            self.rpcsvc.CloseServiceHandle(service)
         except Exception, e:
-            print e
+            print '[!]', e
             pass
 
     def get_output(self):
@@ -239,10 +239,10 @@ class CMDEXEC:
                 smb_server.stop() 
             except (Exception, KeyboardInterrupt), e:
                 print '[!] Insufficient privileges, unable to execute code' 
-                print e
+                print '[!]', e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)
+                #print(exc_type, fname, exc_tb.tb_lineno)
                 sys.stdout.flush()
            
             
@@ -265,8 +265,6 @@ class SMBMap():
         self.password = password
         self.domain = domain
         self.host = host
-        if self.is_ntlm(password):
-            self.lmhash, self.nthash = password.split(':')
         
         try:
             self.smbconn = SMBConnection(host, host, sess_port=self.port)
@@ -280,7 +278,7 @@ class SMBMap():
 
         except Exception as e:
             print '[!] Authentication error occured'
-            print e
+            print '[!]', e
             return False
  
     def logout(self):
@@ -337,7 +335,6 @@ class SMBMap():
         self.domain = domain
         self.host = host
         lmhash, nthash = ntlmhash.split(':')    
-    
         try:
             self.smbconn = SMBConnection(host, host, sess_port=self.port)
             self.smbconn.login(username, '', domain, lmhash=lmhash, nthash=nthash)
@@ -350,6 +347,7 @@ class SMBMap():
 
         except Exception as e:
             print '[!] Authentication error occured'
+            print '[!]', e
             return False
             sys.exit()   
  
@@ -399,10 +397,10 @@ class SMBMap():
                                         self.download_file('%s%s/%s' % (share, pwd, filename))
                             print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
                         except SessionError as e:
-                            print e
+                            print '[!]', e
                             continue
                         except Exception as e:
-                            print e
+                            print '[!]', e
 
                     for smbItem in pathList[root]:
                         try:
@@ -513,10 +511,10 @@ class SMBMap():
                 print '[!] Error retrieving file, sharing violation'
             else:
                 print '[!] Error deleting file, unkown error'
-                print e
+                print '[!]', e
         except Exception as e:
             print '[!] Error deleting file, unkown error'
-            print e
+            print '[!]', e
          
     def upload_file(self, src, dst): 
         dst = string.replace(dst,'/','\\')
@@ -564,7 +562,7 @@ class SMBMap():
             print "Simultaneous Users: %d" % resp['InfoStruct']['ServerInfo102']['sv102_users']
         except Exception as e:
             print '[!] RPC Access denied...oh well'
-            print e
+            print '[!]', e
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(exc_type, fname, exc_tb.tb_lineno)
@@ -744,7 +742,7 @@ if __name__ == "__main__":
                     except:
                         host[i.strip()] = { 'name': 'unkown' , 'port' : port }
             except Exception as e:
-                print e
+                print '[!]', e
                 continue
     else:
         if mysmb.find_open_ports(ip, int(port)):
@@ -860,6 +858,6 @@ if __name__ == "__main__":
         except SessionError as e:
             print '[!] Access Denied'
         except Exception as e:
-            print e
+            print '[!]', e
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
