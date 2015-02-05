@@ -395,10 +395,10 @@ class SMBMap():
                                     fileMatch = re.search(pattern, filename.lower())
                                     if fileMatch:
                                         dlThis = '%s%s/%s' % (share, pwd, filename) 
-                                        print '[+] Match found! Downloading: %s' % (dlThis.replace('//','/'))
+                                        print '\t[+] Match found! Downloading: %s' % (dlThis.replace('//','/'))
                                         self.download_file( dlThis ) 
-                            if '-A' not in sys.argv:
-                                print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
+                            #if '-A' not in sys.argv:
+                            print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
                         except SessionError as e:
                             print '[!]', e
                             continue
@@ -430,7 +430,7 @@ class SMBMap():
         root = ntpath.normpath(root)
         return root
 
-    def list_path(self, share, path, display=False):
+    def list_path(self, share, path, pattern, display=False):
         pwd = self.pathify(path)
         width = 16
         try: 
@@ -443,6 +443,13 @@ class SMBMap():
                     date = time.ctime(float(item.get_mtime_epoch()))
                     isDir = 'd' if item.is_directory() > 0 else 'f'
                     filename = item.get_longname()
+                    if item.is_directory() <= 0:
+                        if '-A' in sys.argv:
+                            fileMatch = re.search(pattern.lower(), filename.lower())
+                            if fileMatch:
+                                dlThis = '%s%s/%s' % (share, pwd.strip('*'), filename) 
+                                print '\t[+] Match found! Downloading: %s' % (dlThis.replace('//','/'))
+                                self.download_file( dlThis ) 
                     if display:
                         print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
             return True
@@ -476,9 +483,9 @@ class SMBMap():
         try:
             out = open(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (self.host, share, path.replace('\\','_')))),'wb')
             dlFile = self.smbconn.listPath(share, path)
-            print '[+] Starting download: %s (%s bytes)' % ('%s%s' % (share, path), dlFile[0].get_filesize())
+            print '\t[+] Starting download: %s (%s bytes)' % ('%s%s' % (share, path), dlFile[0].get_filesize())
             self.smbconn.getFile(share, path, out.write)
-            print '[+] File output to: %s/%s' % (os.getcwd(), filename)
+            print '\t[+] File output to: %s/%s' % (os.getcwd(), filename)
         except SessionError as e:
             if 'STATUS_ACCESS_DENIED' in str(e):
                 print '[!] Error retrieving file, access denied'
@@ -596,7 +603,7 @@ def usage():
     print '-x\t\tExecute a command, ex. \'ipconfig /r\''
     print '-d\t\tDomain name (default WORKGROUP)'
     print '-R\t\tRecursively list dirs, and files (no share\path lists ALL shares), ex. \'C$\\Finance\''
-    print '-A\t\tDefine a file name pattern (regex) that auto downloads a file on a match (requires -R), ex "(web|global).(asax|config)"'
+    print '-A\t\tDefine a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), ex "(web|global).(asax|config)"'
     print '-r\t\tList contents of directory, default is to list root of all shares, ex. -r \'c$\Documents and Settings\Administrator\Documents\''
     print '-F\t\tFile content filter, -f "password" (feature pending)'
     print '-D\t\tDownload path, ex. \'C$\\temp\\passwords.txt\''
@@ -749,8 +756,8 @@ if __name__ == "__main__":
         print '[!] Upload source defined, but missing destination (--upload-dst)'
         sys.exit()
 
-    if '-A' in sys.argv and '-R' not in sys.argv:
-        print '[!] Auto download requires recusive share listing...aborting'
+    if '-A' in sys.argv and ('-R' not in sys.argv and  '-r' not in sys.argv):
+        print '[!] Auto download requires share listing...aborting'
         sys.exit()
      
     if '-p' not in sys.argv:
@@ -864,7 +871,7 @@ if __name__ == "__main__":
                     canWrite = False
 
                 if canWrite == False:
-                    readable = mysmb.list_path(share, '', False)
+                    readable = mysmb.list_path(share, '', pattern, False)
                     if readable:
                         print '\t%s\tREAD ONLY' % (share.ljust(50))
                     else:
@@ -881,20 +888,24 @@ if __name__ == "__main__":
 
                     if '-r' in sys.argv:
                         if lsshare and lspath:
-                            dirList = mysmb.list_path(lsshare, lspath, True)
+                            if '-A' in sys.argv:
+                                print '\t[+] Starting search for files matching \'%s\' on share %s.' % (pattern, lsshare)
+                            dirList = mysmb.list_path(lsshare, lspath, pattern, True)
                             sys.exit()
                         else:
-                            dirList = mysmb.list_path(share, path, True)
+                            if '-A' in sys.argv:
+                                print '\t[+] Starting search for files matching \'%s\' on share %s.' % (pattern, share)
+                            dirList = mysmb.list_path(share, path, pattern, True)
 
                     elif '-R' in sys.argv:
                         if lsshare and lspath:
                             if '-A' in sys.argv:
-                                print '[+] Starting search for files matching \'%s\' on share %s.' % (pattern, lsshare)
+                                print '\t[+] Starting search for files matching \'%s\' on share %s.' % (pattern, lsshare)
                             dirList = mysmb.list_path_recursive(lsshare, lspath, '*', pathList, pattern)
                             sys.exit()
                         else:
                             if '-A' in sys.argv:
-                                print '[+] Starting search for files matching \'%s\' on share %s.' % (pattern, share)
+                                print '\t[+] Starting search for files matching \'%s\' on share %s.' % (pattern, share)
                             dirList = mysmb.list_path_recursive(share, path, '*', pathList, pattern)
 
                 if error > 0:
