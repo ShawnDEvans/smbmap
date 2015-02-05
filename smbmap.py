@@ -392,7 +392,7 @@ class SMBMap():
                             date = time.ctime(float(smbItem.get_mtime_epoch()))
                             if smbItem.is_directory() <= 0:
                                 if '-A' in sys.argv:
-                                    fileMatch = re.search(pattern, filename.lower())
+                                    fileMatch = re.search(pattern.lower(), filename.lower())
                                     if fileMatch:
                                         dlThis = '%s%s/%s' % (share, pwd, filename) 
                                         print '\t[+] Match found! Downloading: %s' % (dlThis.replace('//','/'))
@@ -485,7 +485,7 @@ class SMBMap():
             dlFile = self.smbconn.listPath(share, path)
             print '\t[+] Starting download: %s (%s bytes)' % ('%s%s' % (share, path), dlFile[0].get_filesize())
             self.smbconn.getFile(share, path, out.write)
-            print '\t[+] File output to: %s/%s' % (os.getcwd(), filename)
+            print '\t[+] File output to: %s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (self.host, share, path.replace('\\','_')))))
         except SessionError as e:
             if 'STATUS_ACCESS_DENIED' in str(e):
                 print '[!] Error retrieving file, access denied'
@@ -603,7 +603,7 @@ def usage():
     print '-x\t\tExecute a command, ex. \'ipconfig /r\''
     print '-d\t\tDomain name (default WORKGROUP)'
     print '-R\t\tRecursively list dirs, and files (no share\path lists ALL shares), ex. \'C$\\Finance\''
-    print '-A\t\tDefine a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), ex "(web|global).(asax|config)"'
+    print '-A\t\tDefine a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex "(web|global).(asax|config)"'
     print '-r\t\tList contents of directory, default is to list root of all shares, ex. -r \'c$\Documents and Settings\Administrator\Documents\''
     print '-F\t\tFile content filter, -f "password" (feature pending)'
     print '-D\t\tDownload path, ex. \'C$\\temp\\passwords.txt\''
@@ -757,7 +757,7 @@ if __name__ == "__main__":
         sys.exit()
 
     if '-A' in sys.argv and ('-R' not in sys.argv and  '-r' not in sys.argv):
-        print '[!] Auto download requires share listing...aborting'
+        print '[!] Auto download requires file listing (-r or -R)...aborting'
         sys.exit()
      
     if '-p' not in sys.argv:
