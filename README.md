@@ -40,6 +40,7 @@ $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net grou
 --upload-dst    Upload destination on remote host, ex 'C$\temp\payload.exe'
 --del           Delete a remote file, ex. 'C$\temp\msf.exe'
 --skip          Skip delete file confirmation prompt
+-q		Disable verbose output (basically only really useful with -A)
 ```
 **Sample Output:**
 ```
