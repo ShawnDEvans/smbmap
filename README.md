@@ -110,8 +110,8 @@ $ python smbmap.py -h 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
 [+] IP: 192.168.1.24:445 Name: unkown                                            
-[+] Host 172.16.1.24 Local Drives: C:\ D:\
-[+] Host 172.16.1.24 Net Drive(s):
+[+] Host 192.168.1.24 Local Drives: C:\ D:\
+[+] Host 192.168.1.24 Net Drive(s):
     E:      \\vboxsrv\Public      VirtualBox Shared Folders
 ```
 
