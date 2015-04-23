@@ -48,7 +48,7 @@ $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net grou
 -q      Disable verbose output (basically only really useful with -A)
 ```
 
-## Sample Output:
+## Sample Default Output:
 ```
 $ cat smb-hosts.txt | python smbmap.py -u jsmith -p 'R33nisP!nckl3' -d ABC
 [+] Reading from stdin
@@ -84,6 +84,37 @@ Members
 -------------------------------------------------------------------------------
 abcadmin                  
 The command completed successfully.
+```
+## File Content Searching:
+
+```
+$ python smbmap.py -h 192.168.1.203 -u Administrator -p p00p1234! -F password --search-path 'C:\Users\wingus\AppData\Roaming'
+[!] Missing domain...defaulting to WORKGROUP
+[+] Finding open SMB ports....
+[+] User SMB session establishd...
+[+] IP: 192.168.1.203:445 Name: unkown                                            
+[+] File search started on 1 hosts...this could take a while
+[+] Job 861d4cd845124cad95d42175 started on 192.168.1.203, result will be stored at C:\Windows\TEMP\861d4cd845124cad95d42175.txt
+[+] Grabbing search results, be patient, share drives tend to be big...
+[+] Job 1 of 1 completed
+[+] All jobs complete
+Host: 192.168.1.203       Pattern: password
+C:\Users\wingus\AppData\Roaming\Mozilla\Firefox\Profiles\35msadwm.default\logins.json
+C:\Users\wingus\AppData\Roaming\Mozilla\Firefox\Profiles\35msadwm.default\prefs.js
+```
+
+## Drive Listing
+This feature was added to compliment the file content searching feature
+
+```
+$ python smbmap.py -h 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L 
+[!] Missing domain...defaulting to WORKGROUP
+[+] Finding open SMB ports....
+[+] User SMB session establishd...
+[+] IP: 192.168.1.24:445 Name: unkown                                            
+[+] Host 172.16.1.24 Local Drives: C:\ D:\
+[+] Host 172.16.1.24 Net Drive(s):
+    E:      \\vboxsrv\Public      VirtualBox Shared Folders
 ```
 
 ## Nifty Shell:
