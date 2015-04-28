@@ -8,6 +8,10 @@ You'll need Impacket to use this tool:
 
 https://github.com/CoreSecurity/impacket
 
+Apparently the latest Impacket requires PyASN.1:
+
+http://sourceforge.net/projects/pyasn1/
+
 ## Features:
 - Pass-the-hash Support
 - File upload/download/delete
