@@ -287,6 +287,7 @@ class SMBMap():
  
     def logout(self, host):
         self.smbconn[host].logoff()
+        
     
     def smart_login(self):
         for host in self.hosts.keys():
@@ -961,7 +962,7 @@ if __name__ == "__main__":
             try:
                 if mysmb.find_open_ports(i.strip(), int(port)):
                     try:
-                        host[i.strip()] = { 'name' : socket.getnameinfo(i.strip(), port) , 'port' : port, 'user' : user, 'passwd' : passwd, 'domain' : domain}
+                        host[i.strip()] = { 'name' : socket.getnameinfo((i.strip(), port),0)[0] , 'port' : port, 'user' : user, 'passwd' : passwd, 'domain' : domain}
                     except:
                         host[i.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : user, 'passwd' : passwd, 'domain' : domain }
             except Exception as e:
@@ -971,8 +972,7 @@ if __name__ == "__main__":
         if mysmb.find_open_ports(ip, int(port)):
             if port:
                 try:
-                    #host[ip.strip()] = { 'name' : socket.gethostbyaddr(ip)[0], 'port' : port }
-                    host[ip.strip()] = { 'name' : socket.getnameinfo(i.strip(), port), 'port' : port, 'user' : user, 'passwd' : passwd, 'domain' : domain}
+                    host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), port),0)[0], 'port' : port, 'user' : user, 'passwd' : passwd, 'domain' : domain}
                 except:
                     host[ip.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : user, 'passwd' : passwd, 'domain' : domain } 
     
