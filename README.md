@@ -21,33 +21,65 @@ http://sourceforge.net/projects/pyasn1/
 - File name matching (with an auto downoad capability)
 
 ```
-SMBMap - Samba Share Enumerator
-Shawn Evans - Shawn.Evans@gmail.com
+SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
-$ python smbmap.py -u jsmith -p password1 -d workgroup -h 192.168.0.1
-$ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' -h 172.16.0.20
-$ cat smb_ip_list.txt | python smbmap.py -u jsmith -p password1 -d workgroup
+optional arguments:
+  -h, --help            show this help message and exit
+
+Main arguments:
+  -H HOST               IP of host
+  --host-file FILE      File containing a list of hosts
+  -u USERNAME           Username, if omitted null session assumed
+  -p PASSWORD           Password or NTLM hash
+  -s SHARE              Specify a share (default C$), ex 'C$'
+  -d DOMAIN             Domain name (default WORKGROUP)
+  -P PORT               SMB port (default 445)
+
+Command Execution:
+  Options for executing commands on the specified host
+
+  -x COMMAND            Execute a command ex. 'ipconfig /r'
+
+Filesystem Search:
+  Options for searching/enumerating the filesystem of the specified host
+
+  -L                    List all drives on the specified host
+  -R [PATH]             Recursively list dirs, and files (no share\path lists
+                        ALL shares), ex. 'C$\Finance'
+  -r [PATH]             List contents of directory, default is to list root of
+                        all shares, ex. -r 'C$\Documents and
+                        Settings\Administrator\Documents'
+  -A PATTERN            Define a file name pattern (regex) that auto downloads
+                        a file on a match (requires -R or -r), not case
+                        sensitive, ex '(web|global).(asax|config)'
+  -q                    Disable verbose output (basically only really useful
+                        with -A)
+
+File Content Search:
+  Options for searching the content of files
+
+  -F PATTERN            File content search, -F '[Pp]assword' (requies admin
+                        access to execute commands, and powershell on victim
+                        host)
+  --search-path PATH    Specify drive/path to search (used with -F, default
+                        C:\Users), ex 'D:\HR\'
+
+Filesystem interaction:
+  Options for interacting with the specified host's filesystem
+
+  --download PATH       Download a file from the remote system,
+                        ex.'C$\temp\passwords.txt'
+  --upload SRC DST      Upload a file to the remote system ex.
+                        '/tmp/payload.exe C$\temp\payload.exe'
+  --delete PATH TO FILE
+                        Delete a remote file, ex. 'C$\temp\msf.exe'
+  --skip                Skip delete file confirmation prompt
+
+Examples:
+
+$ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1
+$ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' -H 172.16.0.20
 $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net group "Domain Admins" /domain'
-
--P      port (default 445), ex 139
--h      IP of host
--u      Username, if omitted null session assumed
--p      Password or NTLM hash
--s      Share to use for smbexec command output (default C$), ex 'C$'
--x      Execute a command, ex. 'ipconfig /r'
--d      Domain name (default WORKGROUP)
--R      Recursively list dirs, and files (no share\path lists ALL shares), ex. 'C$\Finance'
--A      Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex "(web|global).(asax|config)"
--r      List contents of directory, default is to list root of all shares, ex. -r 'c$\Documents and Settings\Administrator\Documents'
--F      File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)
---search-path   Specify drive/path to search (used with -F, default C:\Users), ex 'D:\HR\'
--D      Download path, ex. 'C$\temp\passwords.txt'
--L      List all drives on a host
---upload-src    File upload source, ex '/temp/payload.exe'  (note that this requires --upload-dst for a destiation share)
---upload-dst    Upload destination on remote host, ex 'C$\temp\payload.exe'
---del       Delete a remote file, ex. 'C$\temp\msf.exe'
---skip      Skip delete file confirmation prompt
--q      Disable verbose output (basically only really useful with -A)
 ```
 
 ## Sample Default Output:
