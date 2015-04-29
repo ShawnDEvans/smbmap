@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python2
 import sys
 import uuid
 import signal
@@ -8,6 +8,7 @@ import random
 import string
 import logging
 import ConfigParser
+import argparse
 from threading import Thread
 from impacket import smb, version, smb3, nt_errors, smbserver
 from impacket.dcerpc.v5 import samr, transport, srvs
@@ -287,6 +288,7 @@ class SMBMap():
  
     def logout(self, host):
         self.smbconn[host].logoff()
+        
     
     def smart_login(self):
         for host in self.hosts.keys():
@@ -392,7 +394,7 @@ class SMBMap():
                 for job in self.jobs.keys():
                     result = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "2>nul (>>%s\%s.txt (call )) && (echo not locked) || (echo locked)"' % (self.jobs[job]['tmp'], job), False)
                     if 'not locked' in result:
-                        dl_target = '%s%s\%s.txt' % (share, self.jobs[job]['tmp'][2:], job)
+                        dl_target = '%s%s\%s.txt' % (self.jobs[job]['share'], self.jobs[job]['tmp'][2:], job)
                         host_dest = self.download_file(host, dl_target, False)
                         results_file = open(host_dest)
                         self.search_output_buffer += 'Host: %s \t\tPattern: %s\n' % (self.jobs[job]['host'], self.jobs[job]['pattern'])
@@ -465,8 +467,8 @@ class SMBMap():
                     print '\t%s\tREAD ONLY' % (share.ljust(50))
                 else:
                     error += 1
-
-            if error == 0 and (len(set(sys.argv).intersection(['-r','-R'])) == 1):
+            
+            if error == 0: 
                 path = '/'
                 if self.list_files and not self.recursive:
                     if lsshare and lspath:
@@ -483,16 +485,15 @@ class SMBMap():
                     if lsshare and lspath:
                         if self.pattern:
                             print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, lsshare)
-                        dirList = self.list_path_recursive(host, lsshare, lspath, '*', pathList, pattern, verbose)
+                        dirList = self.list_path_recursive(host, lsshare, lspath, '*', pathList, self.pattern, verbose)
                         sys.exit()
                     else:
                         if self.pattern:
                             print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share)
-                        dirList = self.list_path_recursive(host, share, path, '*', pathList, pattern, verbose)
+                        dirList = self.list_path_recursive(host, share, path, '*', pathList, self.pattern, verbose)
             
             if error > 0:
                 print '\t%s\tNO ACCESS' % (share.ljust(50))
-                error = 0
 
     def get_shares(self, host):
         shareList = self.smbconn[host].listShares()
@@ -503,11 +504,12 @@ class SMBMap():
 
     def list_path_recursive(self, host, share, pwd, wildcard, pathList, pattern, verbose):
         root = self.pathify(pwd)
+        root = ntpath.normpath(root)
         width = 16
         try:
             pathList[root] = self.smbconn[host].listPath(share, root)
             if verbose: 
-                print '\t.%s' % (pwd.replace('//','/'))
+                print '\t.%s' % (root.strip('*'))
             if len(pathList[root]) > 2:
                     for smbItem in pathList[root]:
                         try:
@@ -520,9 +522,10 @@ class SMBMap():
                                 if self.pattern:
                                     fileMatch = re.search(pattern.lower(), filename.lower())
                                     if fileMatch:
-                                        dlThis = '%s%s/%s' % (share, pwd, filename) 
-                                        print '\t[+] Match found! Downloading: %s' % (dlThis.replace('//','/'))
-                                        self.download_file(host, dlThis, True) 
+                                        dlThis = '%s\\%s/%s' % (share, pwd, filename)
+                                        dlThis = dlThis.replace('/', '\\')
+                                        print '\t[+] Match found! Downloading: %s' % (ntpath.normpath(dlThis))
+                                        self.download_file(host, dlThis, False) 
                             if verbose: 
                                 print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
                         except SessionError as e:
@@ -572,9 +575,10 @@ class SMBMap():
                     if self.pattern:
                         fileMatch = re.search(pattern.lower(), filename.lower())
                         if fileMatch:
-                            dlThis = '%s%s/%s' % (share, pwd.strip('*'), filename) 
-                            print '\t[+] Match found! Downloading: %s' % (dlThis.replace('//','/'))
-                            self.download_file(host, dlThis, True) 
+                            dlThis = '%s\\%s/%s' % (share, ntpath.normpath(pwd.strip('*')), filename)
+                            dlThis = dlThis.replace('/','\\') 
+                            print '\t[+] Match found! Downloading: %s' % (dlThis)
+                            self.download_file(host, dlThis, False) 
                 if verbose:
                     print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
             return True
@@ -606,7 +610,7 @@ class SMBMap():
         share = path.split('\\')[0]
         path = path.replace(share, '')
         try:
-            out = open(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share, path.replace('\\','_')))),'wb')
+            out = open(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))),'wb')
             dlFile = self.smbconn[host].listPath(share, path)
             if verbose:
                 msg = '[+] Starting download: %s (%s bytes)' % ('%s%s' % (share, path), dlFile[0].get_filesize())
@@ -615,7 +619,7 @@ class SMBMap():
                 print msg 
             self.smbconn[host].getFile(share, path, out.write)
             if verbose:
-                msg = '[+] File output to: %s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share, path.replace('\\','_')))))
+                msg = '[+] File output to: %s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
                 if self.pattern:
                     msg = '\t'+msg
                 print msg 
@@ -625,7 +629,13 @@ class SMBMap():
             elif 'STATUS_INVALID_PARAMETER' in str(e):
                 print '[!] Error retrieving file, invalid path'
             elif 'STATUS_SHARING_VIOLATION' in str(e):
-                print '[!] Error retrieving file, sharing violation'
+                if not verbose:
+                    indent = '\t'
+                else:
+                    indent = ''
+                print '%s[!] Error retrieving file %s, sharing violation' % (indent, filename)
+                out.close()
+                os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
         except Exception as e:
             print '[!] Error retrieving file, unkown error'
             os.remove(filename)
@@ -676,9 +686,10 @@ class SMBMap():
             print '[+] Starting upload: %s (%s bytes)' % (src, os.path.getsize(src))
             upFile = open(src, 'rb')
             try:
-                self.smbconn[host].putFile(host, share, dst, upFile.read)
+                self.smbconn[host].putFile(share, dst, upFile.read)
                 print '[+] Upload complete' 
-            except:
+            except Exception as e:
+                print '[!]', e
                 print '[!] Error uploading file, you need to include destination file name in the path'
             upFile.close() 
         else:
@@ -722,299 +733,136 @@ def signal_handler(signal, frame):
     print 'You pressed Ctrl+C!'
     sys.exit(1)
 
-def usage():
-    print 'SMBMap - Samba Share Enumerator'
-    print 'Shawn Evans - Shawn.Evans@gmail.com'
-    print ''
-    print '$ python %s -u jsmith -p password1 -d workgroup -h 192.168.0.1' % (sys.argv[0])
-    print '$ python %s -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -h 172.16.0.20' % (sys.argv[0]) 
-    print '$ cat smb_ip_list.txt | python %s -u jsmith -p password1 -d workgroup' % (sys.argv[0])
-    print '$ python smbmap.py -u \'apadmin\' -p \'asdf1234!\' -d ACME -h 10.1.3.30 -x \'net group "Domain Admins" /domain\''
-    print ''
-    print '-P\t\tport (default 445), ex 139'
-    print '-h\t\tIP of host'
-    print '-u\t\tUsername, if omitted null session assumed'
-    print '-p\t\tPassword or NTLM hash' 
-    print '-s\t\tShare to use for smbexec command output (default C$), ex \'C$\''
-    print '-x\t\tExecute a command, ex. \'ipconfig /r\''
-    print '-d\t\tDomain name (default WORKGROUP)'
-    print '-R\t\tRecursively list dirs, and files (no share\path lists ALL shares), ex. \'C$\\Finance\''
-    print '-A\t\tDefine a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex "(web|global).(asax|config)"'
-    print '-r\t\tList contents of directory, default is to list root of all shares, ex. -r \'c$\Documents and Settings\Administrator\Documents\''
-    print '-F\t\tFile content search, -F \'[Pp]assword\' (requies admin access to execute commands, and powershell on victim host)'
-    print '--search-path\tSpecify drive/path to search (used with -F, default C:\\Users), ex \'D:\\HR\\\''
-    print '-D\t\tDownload path, ex. \'C$\\temp\\passwords.txt\''
-    print '-L\t\tList all drives on a host'
-    print '--upload-src\tFile upload source, ex \'/temp/payload.exe\'  (note that this requires --upload-dst for a destiation share)'
-    print '--upload-dst\tUpload destination on remote host, ex \'C$\\temp\\payload.exe\''
-    print '--del\t\tDelete a remote file, ex. \'C$\\temp\\msf.exe\''
-    print '--skip\t\tSkip delete file confirmation prompt'
-    print '-q\t\tDisable verbose output (basically only really useful with -A)'
-    print ''
-    sys.exit()
-     
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com")
+
+    sgroup = parser.add_argument_group("Main arguments")
+    mex_group = sgroup.add_mutually_exclusive_group(required=True)
+    mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP of host")
+    mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", type=argparse.FileType('r'), help="File containing a list of hosts")
+    sgroup.add_argument("-u", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
+    sgroup.add_argument("-p", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
+    sgroup.add_argument("-s", metavar="SHARE", dest='share', default="C$", help="Specify a share (default C$), ex 'C$'")
+    sgroup.add_argument("-d", metavar="DOMAIN", dest='domain', default="WORKGROUP", help="Domain name (default WORKGROUP)")
+    sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
+
+    sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
+    sgroup2.add_argument("-x", metavar="COMMAND", dest='command', help="Execute a command ex. 'ipconfig /r'")
+    
+    sgroup3 = parser.add_argument_group("Filesystem Search", "Options for searching/enumerating the filesystem of the specified host")
+    mex_group2 = sgroup3.add_mutually_exclusive_group()
+    mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host")
+    mex_group2.add_argument("-R", metavar="PATH", dest="recursive_dir_list", nargs="?", const='', help="Recursively list dirs, and files (no share\path lists ALL shares), ex. 'C$\\Finance'")
+    mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
+    sgroup3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
+    sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Disable verbose output (basically only really useful with -A)")
+    
+    sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files")
+    sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)")
+    sgroup4.add_argument("--search-path", dest="search_path", default="C:\\Users", metavar="PATH", help="Specify drive/path to search (used with -F, default C:\\Users), ex 'D:\\HR\\'")
+    
+    sgroup5 = parser.add_argument_group("Filesystem interaction", "Options for interacting with the specified host's filesystem")
+    sgroup5.add_argument("--download", dest='dlPath', metavar="PATH", help="Download a file from the remote system, ex.'C$\\temp\\passwords.txt'")
+    sgroup5.add_argument("--upload", nargs=2, dest='upload', metavar=('SRC', 'DST'), help="Upload a file to the remote system ex. '/tmp/payload.exe C$\\temp\\payload.exe'")
+    sgroup5.add_argument("--delete", dest="delFile", metavar="PATH TO FILE", help="Delete a remote file, ex. 'C$\\temp\\msf.exe'")
+    sgroup5.add_argument("--skip", default=False, action="store_true", help="Skip delete file confirmation prompt")
+    
+
+    if len(sys.argv) is 1:
+        parser.print_help()
+        sys.exit(1)
+
+    args = parser.parse_args()
+
     signal.signal(signal.SIGINT, signal_handler)
-    if len(sys.argv) < 3:
-        usage()
+    
+    host = dict()
     mysmb = SMBMap()
-    validArgs = ('-L', '--search-path', '-q', '-d', '-P', '-h', '-u', '-p', '-s', '-x', '-A', '-R', '-F', '-D', '-r', '--upload-src', '--upload-dst', '--del', '--skip')
-    ipArg = False 
-    ip = ''
-    counter = 0
-    isFile = False
-    host = {}
-    canWrite = 0
-    dlPath = False
-    src = False
-    dst = False
-    delFile = False
+
     lsshare = False 
     lspath = False
-    command= False
-    port = False
-    share = False
-    skip = None
-    user = ''
-    passwd = ''
-    pattern = ''
-    verbose = True 
-    file_search = False
-    list_drives = False
-    list_shares = True
-    search_path = None
  
-    for val in sys.argv:
+    if args.recursive_dir_list:
+        mysmb.recursive = True
+        mysmb.list_files = True
         try:
-            if val == '-q':
-                verbose = False
-            if val == '-R':
-                mysmb.recursive = True
-            if val == '-?' or val == '--help':
-                usage()
-            if val == '-R' or val == '-r':
-                mysmb.list_files = True
-                try:
-                    if sys.argv[counter+1] not in validArgs:
-                        lspath = sys.argv[counter+1].replace('/','\\').split('\\')
-                        lsshare = lspath[0]
-                        lspath = '\\'.join(lspath[1:])
-                except:
-                    continue
-            if val == '-u':
-                if sys.argv[counter+1] not in validArgs:
-                    user = sys.argv[counter+1]
-                else:
-                   raise Exception('Invalid Username')
-            if val == '-x':
-                if sys.argv[counter+1] not in validArgs:
-                    command = sys.argv[counter+1]
-                    list_shares = False
-                else:
-                    raise Exception('Invalid smbexec command')
-            if val == '-p':
-                if sys.argv[counter+1] not in validArgs:
-                    passwd = sys.argv[counter+1]
-                else:
-                    raise Exception('Invalid password')
-            if val == '-d':
-                if sys.argv[counter+1] not in validArgs:
-                    domain = sys.argv[counter+1]
-                else:
-                    raise Exception('Invalid domain name')
-            if val == '-L':
-                list_drives = True
-                list_shares = False
-            if val == '--search-path':
-                if sys.argv[counter+1] not in validArgs:
-                    search_path = sys.argv[counter+1]
-                    list_shares = False
-                else:
-                    raise Exception('Invalid search pattern')
-            if val == '-h':
-                if sys.argv[counter+1] not in validArgs:
-                    ipArg = sys.argv[counter+1]
-                else:
-                    raise Exception('Host missing')
-            if val == '-s':
-                if sys.argv[counter+1] not in validArgs:
-                    share = sys.argv[counter+1]
-                else:
-                    raise Exception('Invalid share')
-            if val == '-A':
-                try:
-                    if sys.argv[counter+1] not in validArgs:
-                        mysmb.pattern = sys.argv[counter+1]
-                        print '[+] Auto download pattern defined: %s' % (mysmb.pattern)
-                except Exception as e:
-                    print '[!]', e
-                    continue
-            if val == '-P':
-                if sys.argv[counter+1] not in validArgs:
-                    port = sys.argv[counter+1]
-                else:
-                    raise Exception('Invalid port')
-            if val == '-D':
-                try:
-                    if sys.argv[counter+1] not in validArgs:
-                        dlPath = sys.argv[counter+1]
-                        list_shares = False
-                except:
-                    print '[!] Missing download source'
-                    sys.exit()
-            if val == '--upload-dst':
-                try:
-                    if sys.argv[counter+1] not in validArgs:
-                        dst = sys.argv[counter+1]
-                        list_shares = False
-                    else:
-                        raise Exception('Missing destination upload path')
-                except:
-                    print '[!] Missing destination upload path (--upload-dst)'
-                    sys.exit()
-            if val == '--upload-src':
-                try:
-                    if sys.argv[counter+1] not in validArgs:
-                        src = sys.argv[counter+1]
-                        list_shares = False
-                    else:
-                        raise Exception('Invalid upload source')
-                except:
-                    print '[!] Missing upload source'
-                    sys.exit()
-            if val == '--del':
-                if sys.argv[counter+1] not in validArgs:
-                    delFile = sys.argv[counter+1]
-                    list_shares = False
-                else:
-                    raise Exception('Invalid delete path')
-            if val == '--skip':
-               skip = True 
-            if val == '-F':
-                if sys.argv[counter+1] not in validArgs:
-                    file_search = True
-                    pattern = sys.argv[counter+1]
-                    list_shares = False
-                else:
-                    print '[!] Invalid search pattern'
-                    sys.exit()
-            counter+=1
-        except Exception as e:
-            print 
-            print '[!]', e 
-            sys.exit()
-
-    choice = ''  
-
-    if (command or file_search or list_drives) and not share:
-        share = 'C$'
-    if delFile and skip == None: 
-        valid = ['Y','y','N','n'] 
-        while choice not in valid:
-            sys.stdout.write('[?] Confirm deletetion of file: %s [Y/n]? ' % (delFile))
-            choice = raw_input()
-            if choice == 'n' or choice == 'N':
-                print '[!] File deletion aborted...'
-                sys.exit()
-            elif choice == 'Y' or choice == 'y' or choice == '':
-                break
-            else:
-                print '[!] Invalid input'
-
-    if (not src and dst): 
-        print '[!] Upload destination defined, but missing source (--upload-src)'
-        sys.exit()
-    elif (not dst and src):
-        print '[!] Upload source defined, but missing destination (--upload-dst)'
-        sys.exit()
-
-    if '-A' in sys.argv and ('-R' not in sys.argv and  '-r' not in sys.argv):
-        print '[!] Auto download requires file listing (-r or -R)...aborting'
-        sys.exit()
-     
-    if '-p' not in sys.argv:
-        passwd = raw_input('%s\'s Password: ' % (user))    
- 
-    if len(set(sys.argv).intersection(['-d'])) == 0: 
-        print '[!] Missing domain...defaulting to WORKGROUP'
-        domain = 'WORKGROUP'
-    
-    if mysmb.valid_ip(ipArg):
-        ip = ipArg
-    elif not sys.stdin.isatty():
-        isFile = True
-        print '[+] Reading from stdin'
-        ip = sys.stdin.readlines()
-    else:
-        print '[!] Host not defined'
-        sys.exit()
-   
-    if not port:
-        port = 445
-    if '-v' in sys.argv:
-        port = 139
+            lspath = args.recursive_dir_list.replace('/','\\').split('\\')
+            lsshare = lspath[0]
+            lspath = '\\'.join(lspath[1:])
+        except:
+            pass
+            
+    elif args.dir_list != None:
+        mysmb.list_files = True
+        try:
+            lspath = args.dir_list.replace('/','\\').split('\\')
+            lsshare = lspath[0]
+            lspath = '\\'.join(lspath[1:])
+        except:
+            pass
 
     print '[+] Finding open SMB ports....'
     socket.setdefaulttimeout(2)
-    if isFile:
-        for i in ip:
+    if args.hostfile:
+        for ip in args.hostfile:
             try:
-                if mysmb.find_open_ports(i.strip(), int(port)):
+                if mysmb.find_open_ports(ip.strip(), args.port):
                     try:
-                        host[i.strip()] = { 'name' : socket.getnameinfo(i.strip(), port) , 'port' : port, 'user' : user, 'passwd' : passwd, 'domain' : domain}
+                        host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
                     except:
-                        host[i.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : user, 'passwd' : passwd, 'domain' : domain }
+                        host[ip.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
             except Exception as e:
                 print '[!]', e
                 continue
-    else:
-        if mysmb.find_open_ports(ip, int(port)):
-            if port:
-                try:
-                    #host[ip.strip()] = { 'name' : socket.gethostbyaddr(ip)[0], 'port' : port }
-                    host[ip.strip()] = { 'name' : socket.getnameinfo(i.strip(), port), 'port' : port, 'user' : user, 'passwd' : passwd, 'domain' : domain}
-                except:
-                    host[ip.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : user, 'passwd' : passwd, 'domain' : domain } 
+
+    elif args.host:
+        if mysmb.find_open_ports(args.host, args.port):
+            try:
+                host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
+            except:
+                host[args.host.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain } 
     
     mysmb.hosts = host
     mysmb.smart_login()
+    if args.pattern:
+        mysmb.pattern = args.pattern
     for host in mysmb.hosts.keys():
-        if file_search:
+        if args.file_content_search:
             print '[+] File search started on %d hosts...this could take a while' % (len(mysmb.hosts))
-            if not search_path:
-                search_path = 'C:\Users'
-            if search_path[-1] == '\\':
-                search_path = search_path[:-1] 
-            mysmb.start_file_search(host, pattern, share, search_path)
-        if '-v' in sys.argv:
-            mysmb.get_version(host)
+            if args.search_path[-1] == '\\':
+                search_path = args.search_path[:-1]
+            else:
+                search_path = args.search_path
+            mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
         
-        if list_shares: 
-            print '\tDisk%s\tPermissions' % (' '.ljust(50))
-            print '\t----%s\t-----------' % (' '.ljust(50))
+        #if '-v' in sys.argv:
+        #    mysmb.get_version(host)    #commented this out since it wasn't in the original usage
 
         try:
-            if dlPath:
-                mysmb.download_file(host, dlPath)
+            if args.dlPath:
+                mysmb.download_file(host, args.dlPath)
                 sys.exit()
 
-            if src and dst:
-                mysmb.upload_file(host, src, dst)
+            if args.upload:
+                mysmb.upload_file(host, args.upload[0], args.upload[1])
                 sys.exit()
 
-            if delFile:
-                mysmb.delete_file(host, delFile)
-                sys.exit()
-            
-            if command:
-                mysmb.exec_command(host, share, command, True)
+            if args.delFile:
+                mysmb.delete_file(host, args.delFile)
                 sys.exit()
     
-            if list_drives:
-                mysmb.list_drives(host, share)
+            if args.list_drives:
+                mysmb.list_drives(host, args.share)
 
-            if list_shares:
-                mysmb.output_shares(host, lsshare, lspath, True)
+            if args.command:
+                mysmb.exec_command(host, args.share, args.command, True)
+                sys.exit()
+
+            if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search:
+                print '\tDisk%s\tPermissions' % (' '.ljust(50))
+                print '\t----%s\t-----------' % (' '.ljust(50))
+                mysmb.output_shares(host, lsshare, lspath, args.verbose)
 
         except SessionError as e:
             print '[!] Access Denied'
@@ -1024,7 +872,7 @@ if __name__ == "__main__":
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(exc_type, fname, exc_tb.tb_lineno)
             sys.stdout.flush()
-    if file_search:
+    if args.file_content_search:
         mysmb.get_search_results()
      
     for host in mysmb.hosts.keys():
