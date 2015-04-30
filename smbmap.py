@@ -278,11 +278,11 @@ class SMBMap():
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest SMB session established...'
             else:
-                print '[+] User SMB session establishd...'
+                print '[+] User SMB session established...'
             return True
 
         except Exception as e:
-            print '[!] Authentication error occured'
+            print '[!] Authentication error occurred'
             print '[!]', e
             return False
  
@@ -293,7 +293,7 @@ class SMBMap():
     def smart_login(self):
         for host in self.hosts.keys():
             if self.is_ntlm(self.hosts[host]['passwd']):
-                print '[+] Hash detected, using pass-the-hash to authentiate'
+                print '[+] Hash detected, using pass-the-hash to authenticate'
                 if self.hosts[host]['port'] == 445: 
                     success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
@@ -319,11 +319,11 @@ class SMBMap():
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest RCP session established...'
             else:
-                print '[+] User RCP session establishd...'
+                print '[+] User RCP session established...'
             return True
 
         except Exception as e:
-            print '[!] RPC Authentication error occured'
+            print '[!] RPC Authentication error occurred'
             sys.exit()
      
     def login_rpc(self, host, username, password, domain):
@@ -334,11 +334,11 @@ class SMBMap():
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest RCP session established...'
             else:
-                print '[+] User RCP session establishd...'
+                print '[+] User RCP session established...'
             return True
         
         except Exception as e:
-            print '[!] RPC Authentication error occured'
+            print '[!] RPC Authentication error occurred'
             return False
             sys.exit()
  
@@ -351,11 +351,11 @@ class SMBMap():
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest session established...'
             else:
-                print '[+] User session establishd...'
+                print '[+] User session established...'
             return True
 
         except Exception as e:
-            print '[!] Authentication error occured'
+            print '[!] Authentication error occurred'
             print '[!]', e
             return False
             sys.exit()   
@@ -637,7 +637,7 @@ class SMBMap():
                 out.close()
                 os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
         except Exception as e:
-            print '[!] Error retrieving file, unkown error'
+            print '[!] Error retrieving file, unknown error'
             os.remove(filename)
         out.close()
         return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share, path.replace('\\','_')))))
@@ -670,10 +670,10 @@ class SMBMap():
             elif 'STATUS_SHARING_VIOLATION' in str(e):
                 print '[!] Error retrieving file, sharing violation'
             else:
-                print '[!] Error deleting file %s%s%s, unkown error' % (share, path, filename)
+                print '[!] Error deleting file %s%s%s, unknown error' % (share, path, filename)
                 print '[!]', e
         except Exception as e:
-            print '[!] Error deleting file %s%s%s, unkown error' % (share, path, filename)
+            print '[!] Error deleting file %s%s%s, unknown error' % (share, path, filename)
             print '[!]', e
          
     def upload_file(self, host, src, dst): 
@@ -816,7 +816,7 @@ if __name__ == "__main__":
                     try:
                         host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
                     except:
-                        host[ip.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+                        host[ip.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
             except Exception as e:
                 print '[!]', e
                 continue
@@ -826,7 +826,7 @@ if __name__ == "__main__":
             try:
                 host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
             except:
-                host[args.host.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain } 
+                host[args.host.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain } 
     
     mysmb.hosts = host
     mysmb.smart_login()
