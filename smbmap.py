@@ -385,46 +385,58 @@ def _listShares(smb):
 def connect(host):
     try:
         smb = SMBConnection(host, host, None, args.port)
-        lmhash = ''
-        nthash = ''
 
-        if args.hash:
-            lmhash, nthash = args.hash.split(':')
-
-        smb.login(args.user, args.passwd, args.domain, lmhash, nthash)
+        try:
+            smb.login('' , '')
+        except SessionError as e:
+            if "STATUS_ACCESS_DENIED" in e.message:
+                pass
 
         domain = smb.getServerDomain()
         if not domain:
             domain = smb.getServerName()
 
         print "[+] {}:{} is running {} (name:{}) (domain:{})".format(host, args.port, smb.getServerOS(), smb.getServerName(), domain)
-        
-        if args.list_shares:
-            print '\tSHARE{}\tPermissions'.format(' '.ljust(50))
-            print '\t----{}\t-----------'.format(' '.ljust(50))
-            for share, perm in _listShares(smb).iteritems():
-                print "\t{}{}\t{}".format(share,' '.ljust(50), perm)
-        
-        if args.command:
 
-            if args.execm == 'smbexec':
-                executer = CMDEXEC('{}/SMB'.format(args.port), args.user, args.passwd, args.domain, args.hash, args.share, args.command)
-                result = executer.run(host)
 
-            elif args.execm == 'wmi':
-                executer = WMIEXEC(args.command, args.user, args.passwd, args.domain, args.hash, args.share)
-                result = executer.run(host, smb)
+        if args.list_shares or args.command:
+            try:
 
-            if result: print result
+                lmhash = ''
+                nthash = ''
+                if args.hash:
+                    lmhash, nthash = args.hash.split(':')
 
-        smb.logoff()
+                smb.login(args.user, args.passwd, args.domain, lmhash, nthash)
+                
+                if args.list_shares:
+                    print '\tSHARE{}\tPermissions'.format(' '.ljust(50))
+                    print '\t----{}\t-----------'.format(' '.ljust(50))
+                    for share, perm in _listShares(smb).iteritems():
+                        print "\t{}{}\t{}".format(share,' '.ljust(50), perm)
+                
+                if args.command:
 
-    except SessionError as e:
-        print "[-] {}:{} {}".format(host, args.port, e)
+                    if args.execm == 'smbexec':
+                        executer = CMDEXEC('{}/SMB'.format(args.port), args.user, args.passwd, args.domain, args.hash, args.share, args.command)
+                        result = executer.run(host)
+
+                    elif args.execm == 'wmi':
+                        executer = WMIEXEC(args.command, args.user, args.passwd, args.domain, args.hash, args.share)
+                        result = executer.run(host, smb)
+
+                    if result: print result
+
+                smb.logoff()
+
+            except SessionError as e:
+                print "[-] {}:{} {}".format(host, args.port, e)
 
     except Exception as e:
         if ("Connection refused" or "Network unreachable" or "No route to host") in e.message:
             pass
+        #else:
+        #    print "[!] {}".format(e)
 
 def concurrency(hosts):
     ''' Open all the greenlet threads '''
