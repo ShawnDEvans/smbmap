@@ -29,7 +29,7 @@ optional arguments:
 
 Main arguments:
   -H HOST               IP of host
-  --Host-file FILE      File containing a list of hosts
+  --host-file FILE      File containing a list of hosts
   -u USERNAME           Username, if omitted null session assumed
   -p PASSWORD           Password or NTLM hash
   -s SHARE              Specify a share (default C$), ex 'C$'
