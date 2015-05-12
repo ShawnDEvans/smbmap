@@ -482,6 +482,7 @@ class SMBMap():
                         dirList = self.list_path(host, share, path, self.pattern, verbose)
                 
                 if self.recursive:
+                    print lsshare, lspath
                     if lsshare and lspath:
                         if self.pattern:
                             print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, lsshare)
@@ -753,7 +754,7 @@ if __name__ == "__main__":
     sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
-    sgroup2.add_argument("-x", metavar="COMMAND", dest='command', help="Execute a command ex. 'ipconfig /r'")
+    sgroup2.add_argument("-x", metavar="COMMAND", dest='command', help="Execute a command ex. 'ipconfig /all'")
     
     sgroup3 = parser.add_argument_group("Filesystem Search", "Options for searching/enumerating the filesystem of the specified host")
     mex_group2 = sgroup3.add_mutually_exclusive_group()
@@ -787,8 +788,10 @@ if __name__ == "__main__":
 
     lsshare = False 
     lspath = False
- 
-    if args.recursive_dir_list:
+    
+  
+    
+    if args.recursive_dir_list != None:
         mysmb.recursive = True
         mysmb.list_files = True
         try:
@@ -806,7 +809,7 @@ if __name__ == "__main__":
             lspath = '\\'.join(lspath[1:])
         except:
             pass
-
+    
     print '[+] Finding open SMB ports....'
     socket.setdefaulttimeout(2)
     if args.hostfile:
