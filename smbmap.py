@@ -272,13 +272,13 @@ class SMBMap():
      
     def login(self, host, username, password, domain):
         try:
-            self.smbconn[host] = SMBConnection(host, host, sess_port=445)
+            self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=2)
             self.smbconn[host].login(username, password, domain=domain)
              
             if self.smbconn[host].isGuestSession() > 0:
-                print '[+] Guest SMB session established...'
+                print '[+] Guest SMB session established on %s...' % (host)
             else:
-                print '[+] User SMB session establishd...'
+                print '[+] User SMB session establishd on %s...' % (host)
             return True
 
         except Exception as e:
@@ -289,9 +289,9 @@ class SMBMap():
     def logout(self, host):
         self.smbconn[host].logoff()
         
-    
     def smart_login(self):
         for host in self.hosts.keys():
+            success = False
             if self.is_ntlm(self.hosts[host]['passwd']):
                 print '[+] Hash detected, using pass-the-hash to authentiate'
                 if self.hosts[host]['port'] == 445: 
@@ -303,62 +303,62 @@ class SMBMap():
                     success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
                     success = self.login_rpc(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
+            
             if not success:
                 print '[!] Authentication error on %s' % (host)
+                self.smbconn.pop(host,None)
+                self.hosts.pop(host, None)
                 continue
      
-            print '[+] IP: %s:%s\tName: %s' % (host, self.hosts[host]['port'], self.hosts[host]['name'].ljust(50))
             
     def login_rpc_hash(self, host, username, ntlmhash, domain):
         lmhash, nthash = ntlmhash.split(':')    
     
         try:
-            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139)
+            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=2)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
             
             if self.smbconn[host].isGuestSession() > 0:
-                print '[+] Guest RCP session established...'
+                print '[+] Guest RPC session established on %s...' % (host)
             else:
-                print '[+] User RCP session establishd...'
+                print '[+] User RPC session establishd on %s...' % (host) 
             return True
 
         except Exception as e:
             print '[!] RPC Authentication error occured'
-            sys.exit()
-     
+            return False
+ 
     def login_rpc(self, host, username, password, domain):
         try:
-            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139)
+            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=2)
             self.smbconn[host].login(username, password, domain)
             
             if self.smbconn[host].isGuestSession() > 0:
-                print '[+] Guest RCP session established...'
+                print '[+] Guest RPC session established on %s...' % (host)
             else:
-                print '[+] User RCP session establishd...'
+                print '[+] User RPC session establishd on %s...' % (host) 
             return True
         
         except Exception as e:
             print '[!] RPC Authentication error occured'
             return False
-            sys.exit()
  
     def login_hash(self, host, username, ntlmhash, domain):
         lmhash, nthash = ntlmhash.split(':')    
         try:
-            self.smbconn[host] = SMBConnection(host, host, sess_port=445)
+            self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=2)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
             
             if self.smbconn[host].isGuestSession() > 0:
-                print '[+] Guest session established...'
+                print '[+] Guest session established on %s...' % (host)
             else:
-                print '[+] User session establishd...'
+                print '[+] User session establishd on %s...' % (host)
             return True
 
         except Exception as e:
             print '[!] Authentication error occured'
             print '[!]', e
             return False
-            sys.exit()   
  
     def find_open_ports(self, address, port):    
         result = 1
@@ -482,7 +482,6 @@ class SMBMap():
                         dirList = self.list_path(host, share, path, self.pattern, verbose)
                 
                 if self.recursive:
-                    print lsshare, lspath
                     if lsshare and lspath:
                         if self.pattern:
                             print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, lsshare)
@@ -868,6 +867,7 @@ if __name__ == "__main__":
                 sys.exit()
 
             if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search:
+                print '[+] IP: %s:%s\tName: %s' % (host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50))
                 print '\tDisk%s\tPermissions' % (' '.ljust(50))
                 print '\t----%s\t-----------' % (' '.ljust(50))
                 mysmb.output_shares(host, lsshare, lspath, args.verbose)
