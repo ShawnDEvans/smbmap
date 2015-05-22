@@ -390,13 +390,16 @@ class SMBMap():
         print '[+] Grabbing search results, be patient, share drives tend to be big...'
         counter = 0
         num_jobs = len(self.jobs.keys())
-        while counter < num_jobs: 
+        while len(self.jobs.keys()) > 0:
             try:
                 for job in self.jobs.keys():
+                    isItThere = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "if exist %s\%s.txt echo ImHere"' % (self.jobs[job]['tmp'], job), False)
                     result = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "2>nul (>>%s\%s.txt (call )) && (echo not locked) || (echo locked)"' % (self.jobs[job]['tmp'], job), False)
-                    if 'not locked' ==  result.strip():
+                    dl_target = '%s%s\%s.txt' % (self.jobs[job]['share'], self.jobs[job]['tmp'][2:], job)
+                    if 'not locked' ==  result.strip() and isItThere.strip() == 'ImHere':
                         dl_target = '%s%s\%s.txt' % (self.jobs[job]['share'], self.jobs[job]['tmp'][2:], job)
                         host_dest = self.download_file(self.jobs[job]['host'], dl_target, False)
+                        counter += 1
                         self.search_output_buffer += 'Host: %s \t\tPattern: %s\n' % (self.jobs[job]['host'], self.jobs[job]['pattern'])
                         if os.stat(host_dest).st_size > 0:
                             results_file = open(host_dest)
@@ -404,10 +407,10 @@ class SMBMap():
                             self.search_output_buffer += '\n'
                         else:
                             self.search_output_buffer += 'No matching patterns found\n\n'
+                        print '[+] Job %d of %d completed on %s...' % (counter, num_jobs, self.jobs[job]['host'])
                         self.delete_file(self.jobs[job]['host'], dl_target, False)
-                        counter += 1
-                        print '[+] Job %d of %d completed' % (counter, len(self.jobs.keys()))
-                        if counter == num_jobs:
+                        self.jobs.pop(job, None)
+                        if counter >= num_jobs:
                             break
                     else:
                         time.sleep(10)
