@@ -146,19 +146,37 @@ $ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$\Users'
 ## File Content Searching:
 
 ```
-$ python smbmap.py -H 192.168.1.203 -u Administrator -p p00p1234! -F password --search-path 'C:\Users\wingus\AppData\Roaming'
-[!] Missing domain...defaulting to WORKGROUP
+$ python smbmap.py --host-file ~/Desktop/smb-workstation-sml.txt -u NopSec -p 'N0pS3c!1234!' -d mhadomain -F '[1-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]'
 [+] Finding open SMB ports....
-[+] User SMB session establishd...
-[+] IP: 192.168.1.203:445 Name: unkown                                            
+[+] User SMB session establishd on 192.168.0.99...
+[+] User SMB session establishd on 192.168.0.85...
+[+] User SMB session establishd on 192.168.0.89...
 [+] File search started on 1 hosts...this could take a while
-[+] Job 861d4cd845124cad95d42175 started on 192.168.1.203, result will be stored at C:\Windows\TEMP\861d4cd845124cad95d42175.txt
+[+] Job 4650e5a97b9f4ca884613f4b started on 192.168.0.99, result will be stored at C:\Temp\4650e5a97b9f4ca884613f4b.txt
+[+] File search started on 2 hosts...this could take a while
+[+] Job e0c822a802eb455f96259f33 started on 192.168.0.85, result will be stored at C:\Windows\TEMP\e0c822a802eb455f96259f33.txt
+[+] File search started on 3 hosts...this could take a while
+[+] Job 0a5d352bf2bd4e288e0f8f36 started on 192.168.0.89, result will be stored at C:\Temp\0a5d352bf2bd4e288e0f8f36.txt
 [+] Grabbing search results, be patient, share drives tend to be big...
-[+] Job 1 of 1 completed
+[+] Job 1 of 3 completed on 192.168.0.85...
+[+] File successfully deleted: C$\Windows\TEMP\e0c822a802eb455f96259f33.txt
+[+] Job 2 of 3 completed on 192.168.0.89...
+[+] File successfully deleted: C$\Temp\0a5d352bf2bd4e288e0f8f36.txt
+[+] Job 3 of 3 completed on 192.168.0.99...
+[+] File successfully deleted: C$\Temp\4650e5a97b9f4ca884613f4b.txt
 [+] All jobs complete
-Host: 192.168.1.203       Pattern: password
-C:\Users\wingus\AppData\Roaming\Mozilla\Firefox\Profiles\35msadwm.default\logins.json
-C:\Users\wingus\AppData\Roaming\Mozilla\Firefox\Profiles\35msadwm.default\prefs.js
+Host: 192.168.0.85         Pattern: [1-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]
+No matching patterns found
+
+Host: 192.168.0.89         Pattern: [1-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]
+C:\Users\terdf\AppData\Local\Microsoft\Windows\Temporary Internet Files\Content.IE5\JY5MGKVO\salesmaps[1].htm
+C:\Users\terdf\OldFiles\Cache_2013522\Content.IE5\JY5MGKVO\salesmaps[1].htm
+
+Host: 192.168.0.99         Pattern: [1-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]
+C:\Users\biffh\AppData\Local\Microsoft\Internet Explorer\DOMStore\L7W17OPZ\static.olark[1].xml
+C:\Users\biffh\AppData\Local\Temp\Temporary Internet Files\Content.IE5\MIY2POGJ\validation[2].js
+C:\Users\biffh\AppData\Local\Temp\Temporary Internet Files\Content.IE5\NV1MNBWA\Docs[1].htm
+C:\Users\biffh\AppData\Local\Temp\Temporary Internet Files\Content.IE5\NV1MNBWA\Salesmaps[1].htm
 ```
 
 ## Drive Listing:
