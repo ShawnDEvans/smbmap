@@ -282,35 +282,42 @@ class SMBMap():
             return True
 
         except Exception as e:
-            print '[!] Authentication error occured'
-            print '[!]', e
+            print '[!] Authentication error occured on host: %s, %s' % (host, e)
+            if 'Errno 61' in str(e):
+                print '[!] Max number of connections hit, taking a nap for a bit...'
+                start_time = time.time()
+                stupid = ['\\','|','/','-']
+                stupid_count = 0
+                while time.time() - start_time < 20:
+                    sys.stdout.write('[!] Really sorry about this...%s\r' % (stupid[stupid_count]))
+                    stupid_count = stupid_count if stupid_count < 3 else 0
+                    stupid_count += 1
+                    time.sleep(.25)
             return False
  
     def logout(self, host):
         self.smbconn[host].logoff()
         
-    def smart_login(self):
-        for host in self.hosts.keys():
-            success = False
-            if self.is_ntlm(self.hosts[host]['passwd']):
-                print '[+] Hash detected, using pass-the-hash to authentiate'
-                if self.hosts[host]['port'] == 445: 
-                    success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
-                else:
-                    success = self.login_rpc_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
+    def smart_login(self, host):
+        success = False
+        if self.is_ntlm(self.hosts[host]['passwd']):
+            print '[+] Hash detected, using pass-the-hash to authentiate'
+            if self.hosts[host]['port'] == 445: 
+                success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
             else:
-                if self.hosts[host]['port'] == 445:
-                    success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
-                else:
-                    success = self.login_rpc(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
-            
-            if not success:
-                print '[!] Authentication error on %s' % (host)
-                self.smbconn.pop(host,None)
-                self.hosts.pop(host, None)
-                continue
-     
-            
+                success = self.login_rpc_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
+        else:
+            if self.hosts[host]['port'] == 445:
+                success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
+            else:
+                success = self.login_rpc(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
+         
+        if success:
+            return True
+        else:
+            self.smbconn.pop(host,None)
+ 
+        
     def login_rpc_hash(self, host, username, ntlmhash, domain):
         lmhash, nthash = ntlmhash.split(':')    
     
@@ -361,15 +368,14 @@ class SMBMap():
             return False
  
     def find_open_ports(self, address, port):    
-        result = 1
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2)
-            result = sock.connect_ex((address,port))
-            if result == 0:
-                sock.close()
-                return True
+            sock.settimeout(.5)
+            sock.connect((address,port))
+            sock.close()
+            return True
         except:
+            sock.close()
             return False
 
     def start_file_search(self, host, pattern, share, search_path):
@@ -462,6 +468,7 @@ class SMBMap():
                     self.remove_dir(host, share, root)
                 except:
                     print '\t[!] Unable to remove test directory at \\\\%s\\%s%s, plreae remove manually' % (host, share, root)
+
             except Exception as e:
                 #print e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -469,7 +476,7 @@ class SMBMap():
                 #print(exc_type, fname, exc_tb.tb_lineno)
                 sys.stdout.flush()
                 canWrite = False
-
+            
             if canWrite == False:
                 readable = self.list_path(host, share, '', self.pattern, False)
                 if readable:
@@ -503,6 +510,7 @@ class SMBMap():
             
             if error > 0:
                 print '\t%s\tNO ACCESS' % (share.ljust(50))
+            
 
     def get_shares(self, host):
         shareList = self.smbconn[host].listShares()
@@ -818,15 +826,19 @@ if __name__ == "__main__":
             lspath = '\\'.join(lspath[1:])
         except:
             pass
-    
-    print '[+] Finding open SMB ports....'
-    socket.setdefaulttimeout(2)
+
+    hostCount = 0
     if args.hostfile:
+        totalHosts = sum(1 for line in args.hostfile) 
+        args.hostfile.seek(0)
         for ip in args.hostfile:
+            hostCount += 1
             try:
+                sys.stdout.write('[+] Finding open ports...%d%%\r' % (round((float(hostCount)/totalHosts)*100)))
+                sys.stdout.flush()
                 if mysmb.find_open_ports(ip.strip(), args.port):
                     try:
-                        host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
+                        host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), int(args.port)),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
                     except:
                         host[ip.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
             except Exception as e:
@@ -841,59 +853,58 @@ if __name__ == "__main__":
                 host[args.host.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain } 
     
     mysmb.hosts = host
-    mysmb.smart_login()
+    #mysmb.smart_login()
     if args.pattern:
         mysmb.pattern = args.pattern
-    counter = 0
+    searchCounter = 0
     for host in mysmb.hosts.keys():
-        if args.file_content_search:
-            counter += 1
-            print '[+] File search started on %d hosts...this could take a while' % (counter)
-            if args.search_path[-1] == '\\':
-                search_path = args.search_path[:-1]
-            else:
-                search_path = args.search_path
-            mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
+        if mysmb.smart_login(host): 
+            if args.file_content_search:
+                searchCounter += 1
+                print '[+] File search started on %d hosts...this could take a while' % (counter)
+                if args.search_path[-1] == '\\':
+                    search_path = args.search_path[:-1]
+                else:
+                    search_path = args.search_path
+                mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
+            
+            #if '-v' in sys.argv:
+            #    mysmb.get_version(host)    #commented this out since it wasn't in the original usage
+
+            try:
+                if args.dlPath:
+                    mysmb.download_file(host, args.dlPath)
+                    sys.exit()
+
+                if args.upload:
+                    mysmb.upload_file(host, args.upload[0], args.upload[1])
+                    sys.exit()
+
+                if args.delFile:
+                    mysmb.delete_file(host, args.delFile)
+                    sys.exit()
         
-        #if '-v' in sys.argv:
-        #    mysmb.get_version(host)    #commented this out since it wasn't in the original usage
+                if args.list_drives:
+                    mysmb.list_drives(host, args.share)
 
-        try:
-            if args.dlPath:
-                mysmb.download_file(host, args.dlPath)
-                sys.exit()
+                if args.command:
+                    mysmb.exec_command(host, args.share, args.command, True)
+                    sys.exit()
 
-            if args.upload:
-                mysmb.upload_file(host, args.upload[0], args.upload[1])
-                sys.exit()
-
-            if args.delFile:
-                mysmb.delete_file(host, args.delFile)
-                sys.exit()
-    
-            if args.list_drives:
-                mysmb.list_drives(host, args.share)
-
-            if args.command:
-                mysmb.exec_command(host, args.share, args.command, True)
-                sys.exit()
-
-            if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search:
-                print '[+] IP: %s:%s\tName: %s' % (host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50))
-                print '\tDisk%s\tPermissions' % (' '.ljust(50))
-                print '\t----%s\t-----------' % (' '.ljust(50))
-                mysmb.output_shares(host, lsshare, lspath, args.verbose)
-
-        except SessionError as e:
-            print '[!] Access Denied'
-        except Exception as e:
-            print '[!]', e
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
-            sys.stdout.flush()
+                if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search:
+                    print '[+] IP: %s:%s\tName: %s' % (host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50))
+                    print '\tDisk%s\tPermissions' % (' '.ljust(50))
+                    print '\t----%s\t-----------' % (' '.ljust(50))
+                    mysmb.output_shares(host, lsshare, lspath, args.verbose)
+            except SessionError as e:
+                print '[!] Access Denied'
+            except Exception as e:
+                print '[!] Got a weird error on %s: "%s"' % (host, e)
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                #print(exc_type, fname, exc_tb.tb_lineno)
+                sys.stdout.flush()
+            mysmb.logout(host)
     if args.file_content_search:
         mysmb.get_search_results()
      
-    for host in mysmb.hosts.keys():
-        mysmb.logout(host) 
