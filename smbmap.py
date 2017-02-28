@@ -1,4 +1,4 @@
-#pwi! /usr/bin/env python2
+#! /usr/bin/env python2
 import sys
 import uuid
 import signal
@@ -510,7 +510,7 @@ class SMBMap():
                             print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share)
                         dirList = self.list_path_recursive(host, share, path, '*', pathList, self.pattern, verbose)
             
-            if error > 0:
+            if error > 0 and verbose:
                 print '\t%s\tNO ACCESS' % (share.ljust(50))
 
     def get_shares(self, host):
@@ -781,7 +781,7 @@ if __name__ == "__main__":
     mex_group2.add_argument("-R", metavar="PATH", dest="recursive_dir_list", nargs="?", const='', help="Recursively list dirs, and files (no share\path lists ALL shares), ex. 'C$\\Finance'")
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     sgroup3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
-    sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Disable verbose output (basically only really useful with -A)")
+    sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Disable verbose output. Only shows shares you have READ/WRITE on, and supresses file listing when performing a search (-A).")
     
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files")
     sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)")
