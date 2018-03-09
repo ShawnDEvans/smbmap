@@ -120,7 +120,10 @@ class CMDEXEC:
         logging.debug('StringBinding %s'%stringbinding)
         rpctransport = transport.DCERPCTransportFactory(stringbinding)
         rpctransport.set_dport(self.__port)
-        rpctransport.setRemoteHost(remoteHost)
+        if hasattr(rpctransport,'setRemoteHost'):
+            rpctransport.setRemoteHost(remoteHost)
+        else:
+            rpctransport.__dstip = remoteHost
         if hasattr(rpctransport,'preferred_dialect'):
             rpctransport.preferred_dialect(SMB_DIALECT)
         if hasattr(rpctransport, 'set_credentials'):
