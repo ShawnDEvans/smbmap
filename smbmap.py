@@ -30,7 +30,7 @@ import re
 # Seriously, the most amazing Python library ever!!
 # Many thanks to that dev team
 
-OUTPUT_FILENAME = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10))
+OUTPUT_FILENAME = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',10))
 BATCH_FILENAME  = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10)) + '.bat'
 SMBSERVER_DIR   = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10))
 DUMMY_SHARE     = 'TMP'
@@ -101,7 +101,7 @@ class CMDEXEC:
         self.__username = username
         self.__password = password
         self.__port = port
-        self.__serviceName = 'BTOBTO'
+        self.__serviceName = OUTPUT_FILENAME 
         self.__domain = domain 
         self.__lmhash = ''
         self.__nthash = ''
@@ -139,13 +139,14 @@ class CMDEXEC:
             if self.__mode == 'SERVER':
                 serverThread.stop()
         except  (Exception, KeyboardInterrupt), e:
-            import traceback
-            traceback.print_exc()
-            logging.critical(str(e))
-            if self.shell is not None:
-                self.shell.finish()
-            sys.stdout.flush()
-            sys.exit(1)
+            print '[!] Something went wrong:', str(e)
+            #import traceback
+            #traceback.print_exc()
+            #logging.critical(str(e))
+            #if self.shell is not None:
+            #    self.shell.finish()
+            #sys.stdout.flush()
+            #sys.exit(1)
 
 class RemoteShell(cmd.Cmd):
     def __init__(self, share, rpc, mode, serviceName):
@@ -281,7 +282,7 @@ class SMBMap():
      
     def login(self, host, username, password, domain):
         try:
-            self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=2)
+            self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
             self.smbconn[host].login(username, password, domain=domain)
              
             if self.smbconn[host].isGuestSession() > 0:
@@ -324,7 +325,7 @@ class SMBMap():
         lmhash, nthash = ntlmhash.split(':')    
     
         try:
-            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=2)
+            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
             
             if self.smbconn[host].isGuestSession() > 0:
@@ -339,7 +340,7 @@ class SMBMap():
  
     def login_rpc(self, host, username, password, domain):
         try:
-            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=2)
+            self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
             self.smbconn[host].login(username, password, domain)
             
             if self.smbconn[host].isGuestSession() > 0:
@@ -355,7 +356,7 @@ class SMBMap():
     def login_hash(self, host, username, ntlmhash, domain):
         lmhash, nthash = ntlmhash.split(':')    
         try:
-            self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=2)
+            self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
             
             if self.smbconn[host].isGuestSession() > 0:
@@ -373,7 +374,7 @@ class SMBMap():
         result = 1
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2)
+            sock.settimeout(1)
             result = sock.connect_ex((address,port))
             if result == 0:
                 sock.close()
@@ -455,7 +456,7 @@ class SMBMap():
             print '\tNo mapped network drives'
         pass    
         
-    def output_shares(self, host, lsshare, lspath, verbose=True):
+    def output_shares(self, host, lsshare, lspath, verbose=True, depth=255):
         shareList = [lsshare] if lsshare else self.get_shares(host)
         for share in shareList:
             error = 0
@@ -485,30 +486,37 @@ class SMBMap():
                     print '\t%s\tREAD ONLY' % (share.ljust(50))
                 else:
                     error += 1
-            
-            if error == 0: 
-                path = '/'
-                if self.list_files and not self.recursive:
-                    if lsshare and lspath:
-                        if self.pattern:
-                            print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, lsshare)
-                        dirList = self.list_path(host, lsshare, lspath, self.pattern, verbose)
-                        sys.exit()
-                    else:
-                        if self.pattern:
-                            print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share)
-                        dirList = self.list_path(host, share, path, self.pattern, verbose)
-                
-                if self.recursive:
-                    if lsshare and lspath:
-                        if self.pattern:
-                            print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, lsshare)
-                        dirList = self.list_path_recursive(host, lsshare, lspath, '*', pathList, self.pattern, verbose)
-                        sys.exit()
-                    else:
-                        if self.pattern:
-                            print '\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share)
-                        dirList = self.list_path_recursive(host, share, path, '*', pathList, self.pattern, verbose)
+           
+            try: 
+                if error == 0: 
+                    path = '/'
+                    if self.list_files and not self.recursive:
+                        if lsshare and lspath:
+                            if self.pattern:
+                                print u'\t[+] Starting search for files matching \'{}\' on share {}.'.format(self.pattern, lsshare)
+                            dirList = self.list_path(host, lsshare, lspath, self.pattern, verbose)
+                            sys.exit()
+                        else:
+                            if self.pattern:
+                                print u'\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share)
+                            dirList = self.list_path(host, share, path, self.pattern, verbose)
+                    
+                    if self.recursive:
+                        if lsshare and lspath:
+                            if self.pattern:
+                                print u'\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, lsshare)
+                            dirList = self.list_path_recursive(host, lsshare, lspath, '*', pathList, self.pattern, verbose, depth)
+                            sys.exit()
+                        else:
+                            if self.pattern:
+                                print u"\t[+] Starting search for files matching \'{}\' on share {}.".format(self.pattern, share)
+                            dirList = self.list_path_recursive(host, share, path, '*', pathList, self.pattern, verbose, depth)
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print '[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno)
+                sys.stdout.flush()
+                sys.exit()
             
             if error > 0 and verbose:
                 print '\t%s\tNO ACCESS' % (share.ljust(50))
@@ -520,15 +528,16 @@ class SMBMap():
             shares.append(shareList[item]['shi1_netname'][:-1])
         return shares 
 
-    def list_path_recursive(self, host, share, pwd, wildcard, pathList, pattern, verbose):
+    def list_path_recursive(self, host, share, pwd, wildcard, pathList, pattern, verbose, depth):
         root = self.pathify(pwd)
         root = ntpath.normpath(root)
         width = 16
         try:
-            pathList[root] = self.smbconn[host].listPath(share, root)
-            if verbose: 
-                print '\t.%s' % (root.strip('*'))
-            if len(pathList[root]) > 2:
+            if (root.count('\\')-2) <= int(depth): 
+                pathList[root] = self.smbconn[host].listPath(share, root)
+                if verbose: 
+                    print '\t.%s' % (root.strip('*'))
+                if len(pathList[root]) > 2:
                     for smbItem in pathList[root]:
                         try:
                             filename = smbItem.get_longname()
@@ -563,7 +572,7 @@ class SMBMap():
                                 subPath = self.pathify(subPath)
                                 pathList[subPath] = self.smbconn[host].listPath(share, subPath)
                                 if len(pathList[subPath]) > 2:
-                                    self.list_path_recursive(host, share, '%s/%s' % (pwd, filename), wildcard, pathList, pattern, verbose)
+                                    self.list_path_recursive(host, share, '%s/%s' % (pwd, filename), wildcard, pathList, pattern, verbose, depth)
 
                         except SessionError as e:
                             continue
@@ -782,6 +791,7 @@ if __name__ == "__main__":
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     sgroup3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Disable verbose output. Only shows shares you have READ/WRITE on, and supresses file listing when performing a search (-A).")
+    sgroup3.add_argument("--depth", dest="depth", default=255, help="Traverse a directory tree to a specific depth")
     
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files")
     sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)")
@@ -830,7 +840,7 @@ if __name__ == "__main__":
             pass
     
     print '[+] Finding open SMB ports....'
-    socket.setdefaulttimeout(2)
+    socket.setdefaulttimeout(3)
     if args.hostfile:
         for ip in args.hostfile:
             try:
@@ -892,8 +902,9 @@ if __name__ == "__main__":
                 print '[+] IP: %s:%s\tName: %s' % (host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50))
                 print '\tDisk%s\tPermissions' % (' '.ljust(50))
                 print '\t----%s\t-----------' % (' '.ljust(50))
-                mysmb.output_shares(host, lsshare, lspath, args.verbose)
-
+                mysmb.output_shares(host, lsshare, lspath, args.verbose, args.depth)
+            mysmb.logout(host) 
+        
         except SessionError as e:
             print '[!] Access Denied'
         except Exception as e:
@@ -905,5 +916,3 @@ if __name__ == "__main__":
     if args.file_content_search:
         mysmb.get_search_results()
      
-    for host in mysmb.hosts.keys():
-        mysmb.logout(host) 
