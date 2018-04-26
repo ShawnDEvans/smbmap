@@ -146,8 +146,6 @@ class CMDEXEC:
             #import traceback
             #traceback.print_exc()
             #logging.critical(str(e))
-            #if self.shell is not None:
-            #    self.shell.finish()
             #sys.stdout.flush()
             #sys.exit(1)
 
