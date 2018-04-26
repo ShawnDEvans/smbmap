@@ -1,0 +1,3 @@
+https://github.com/CoreSecurity/impacket/archive/impacket_0_9_13.zip
+pyasn1
+pycrypto

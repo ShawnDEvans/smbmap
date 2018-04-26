@@ -4,13 +4,12 @@ SMBMap allows users to enumerate samba share drives across an entire domain. Lis
 
 Some of the features have not been thoroughly tested, so changes will be forth coming as bugs are found. I only really find and fix the bugs while I'm on engagements, so progress is a bit slow. Any feedback or bug reports would be appreciated. It's definitely rough around the edges, but I'm just trying to pack in features at the moment. Version 2.0 should clean up the code a lot….whenever that actually happens ;). Thanks for checking it out!! Planned features include simple remote shell (instead of the god awful powershell script in the examples), actual logging, shadow copying ntds.dit automation (Win7 and up only..for now), threading, other things….
 
-You'll need Impacket to use this tool:
+You'll need Impacket, PyASN.1 and PyCrypto to use this tool:
 
-https://github.com/CoreSecurity/impacket
-
-Apparently the latest Impacket requires PyASN.1:
-
-http://sourceforge.net/projects/pyasn1/
+## Install Requirements
+```
+pip install -r requirements.txt
+```
 
 ## Features:
 - Pass-the-Hash Support
