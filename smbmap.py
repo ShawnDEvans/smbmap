@@ -768,8 +768,8 @@ if __name__ == "__main__":
     example = 'Examples:\n\n'
     example += '$ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1\n'
     example += '$ python smbmap.py -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -H 172.16.0.20\n'
-    example += '$ python smbmap.py -u \'apadmin\' -p \'asdf1234!\' -d ACME -h 10.1.3.30 -x \'net group "Domain Admins" /domain\'\n'
-    
+    example += '$ python smbmap.py -u \'apadmin\' -p \'asdf1234!\' -d ACME -H 10.1.3.30 -x \'net group "Domain Admins" /domain\'\n'
+
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com", epilog=example)
 
     sgroup = parser.add_argument_group("Main arguments")
