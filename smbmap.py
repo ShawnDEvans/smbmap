@@ -289,7 +289,7 @@ class SMBMap():
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest SMB session established on %s...' % (host)
             else:
-                print '[+] User SMB session establishd on %s...' % (host)
+                print '[+] User SMB session established on %s...' % (host)
             return True
 
         except Exception as e:
