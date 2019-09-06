@@ -179,7 +179,7 @@ C:\Users\biffh\AppData\Local\Temp\Temporary Internet Files\Content.IE5\NV1MNBWA\
 ```
 
 ## Drive Listing:
-This feature was added to compliment the file content searching feature
+This feature was added to complement the file content searching feature
 
 ```
 $ python smbmap.py -H 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L
