@@ -472,7 +472,7 @@ class SMBMap():
                 try:
                     self.remove_dir(host, share, root)
                 except:
-                    print '\t[!] Unable to remove test directory at \\\\%s\\%s%s, plreae remove manually' % (host, share, root)
+                    print '\t[!] Unable to remove test directory at \\\\%s\\%s%s, please remove manually' % (host, share, root)
             except Exception as e:
                 #print e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
