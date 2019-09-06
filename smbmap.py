@@ -791,7 +791,7 @@ if __name__ == "__main__":
     mex_group2.add_argument("-R", metavar="PATH", dest="recursive_dir_list", nargs="?", const='', help="Recursively list dirs, and files (no share\path lists ALL shares), ex. 'C$\\Finance'")
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     sgroup3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
-    sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Disable verbose output. Only shows shares you have READ/WRITE on, and supresses file listing when performing a search (-A).")
+    sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Disable verbose output. Only shows shares you have READ/WRITE on, and suppresses file listing when performing a search (-A).")
     sgroup3.add_argument("--depth", dest="depth", default=255, help="Traverse a directory tree to a specific depth")
 
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files")
