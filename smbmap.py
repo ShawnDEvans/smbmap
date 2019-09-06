@@ -293,7 +293,7 @@ class SMBMap():
             return True
 
         except Exception as e:
-            print '[!] Authentication error occured'
+            print '[!] Authentication error occurred'
             print '[!]', e
             return False
 
@@ -336,7 +336,7 @@ class SMBMap():
             return True
 
         except Exception as e:
-            print '[!] RPC Authentication error occured'
+            print '[!] RPC Authentication error occurred'
             return False
 
     def login_rpc(self, host, username, password, domain):
@@ -351,7 +351,7 @@ class SMBMap():
             return True
 
         except Exception as e:
-            print '[!] RPC Authentication error occured'
+            print '[!] RPC Authentication error occurred'
             return False
 
     def login_hash(self, host, username, ntlmhash, domain):
@@ -367,7 +367,7 @@ class SMBMap():
             return True
 
         except Exception as e:
-            print '[!] Authentication error occured'
+            print '[!] Authentication error occurred'
             print '[!]', e
             return False
 
