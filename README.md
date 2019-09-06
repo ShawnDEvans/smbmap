@@ -96,7 +96,7 @@ $  python smbmap.py --host-file smb-hosts.txt -u jsmith -p 'R33nisP!nckl3' -d AB
         IPC$                                                    NO ACCESS
         TMPSHARE                                                READ, WRITE
 [+] User SMB session established...
-[+] IP: 192.168.2.50:445        Name: unkown
+[+] IP: 192.168.2.50:445        Name: unknown
         Disk                                                    Permissions
         ----                                                    -----------
         IPC$                                                    NO ACCESS
@@ -111,7 +111,7 @@ $  python smbmap.py --host-file smb-hosts.txt -u jsmith -p 'R33nisP!nckl3' -d AB
 $ python smbmap.py -u ariley -p 'P@$$w0rd1234!' -d ABC -x 'net group "Domain Admins" /domain' -H 192.168.2.50
 [+] Finding open SMB ports....
 [+] User SMB session established...
-[+] IP: 192.168.2.50:445        Name: unkown
+[+] IP: 192.168.2.50:445        Name: unknown
 Group name     Domain Admins
 Comment        Designated administrators of the domain
 
@@ -186,7 +186,7 @@ $ python smbmap.py -H 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L
 [!] Missing domain...defaulting to WORKGROUP
 [+] Finding open SMB ports....
 [+] User SMB session established...
-[+] IP: 192.168.1.24:445 Name: unkown
+[+] IP: 192.168.1.24:445 Name: unknown
 [+] Host 192.168.1.24 Local Drives: C:\ D:\
 [+] Host 192.168.1.24 Net Drive(s):
     E:      \\vboxsrv\Public      VirtualBox Shared Folders

@@ -666,7 +666,7 @@ class SMBMap():
                 out.close()
                 os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
         except Exception as e:
-            print '[!] Error retrieving file, unkown error'
+            print '[!] Error retrieving file, unknown error'
             os.remove(filename)
         out.close()
         return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
@@ -700,10 +700,10 @@ class SMBMap():
             elif 'STATUS_SHARING_VIOLATION' in str(e):
                 print '[!] Error retrieving file, sharing violation'
             else:
-                print '[!] Error deleting file %s%s%s, unkown error' % (share, path, filename)
+                print '[!] Error deleting file %s%s%s, unknown error' % (share, path, filename)
                 print '[!]', e
         except Exception as e:
-            print '[!] Error deleting file %s%s%s, unkown error' % (share, path, filename)
+            print '[!] Error deleting file %s%s%s, unknown error' % (share, path, filename)
             print '[!]', e
 
     def upload_file(self, host, src, dst):
@@ -849,7 +849,7 @@ if __name__ == "__main__":
                     try:
                         host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
                     except:
-                        host[ip.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+                        host[ip.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
             except Exception as e:
                 print '[!]', e
                 continue
@@ -859,7 +859,7 @@ if __name__ == "__main__":
             try:
                 host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
             except:
-                host[args.host.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+                host[args.host.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
 
     mysmb.hosts = host
     mysmb.smart_login()
