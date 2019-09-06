@@ -795,7 +795,7 @@ if __name__ == "__main__":
     sgroup3.add_argument("--depth", dest="depth", default=255, help="Traverse a directory tree to a specific depth")
 
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files")
-    sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)")
+    sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requires admin access to execute commands, and powershell on victim host)")
     sgroup4.add_argument("--search-path", dest="search_path", default="C:\\Users", metavar="PATH", help="Specify drive/path to search (used with -F, default C:\\Users), ex 'D:\\HR\\'")
 
     sgroup5 = parser.add_argument_group("Filesystem interaction", "Options for interacting with the specified host's filesystem")
