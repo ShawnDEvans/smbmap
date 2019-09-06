@@ -101,8 +101,8 @@ class CMDEXEC:
         self.__username = username
         self.__password = password
         self.__port = port
-        self.__serviceName = OUTPUT_FILENAME 
-        self.__domain = domain 
+        self.__serviceName = OUTPUT_FILENAME
+        self.__domain = domain
         self.__lmhash = ''
         self.__nthash = ''
         self.__aesKey = aesKey
@@ -114,7 +114,7 @@ class CMDEXEC:
         self.command = command
         if hashes is not None:
             self.__lmhash, self.__nthash = hashes.split(':')
-    
+
     def run(self, remoteName, remoteHost):
         stringbinding = 'ncacn_np:%s[\pipe\svcctl]' % remoteName
         logging.debug('StringBinding %s'%stringbinding)
@@ -155,19 +155,19 @@ class RemoteShell(cmd.Cmd):
         self.__share = share
         self.__mode = mode
         self.__output = '\\\\127.0.0.1\\' + self.__share + '\\' + OUTPUT_FILENAME
-        self.__batchFile = '%TEMP%\\' + BATCH_FILENAME 
+        self.__batchFile = '%TEMP%\\' + BATCH_FILENAME
         self.__outputBuffer = ''
         self.__command = ''
         self.__shell = '%COMSPEC% /Q /c '
         self.__serviceName = serviceName
         self.__rpc = rpc
-        
+
         self.__scmr = rpc.get_dce_rpc()
         try:
             self.__scmr.connect()
         except Exception, e:
             #logging.critical(str(e))
-            print e 
+            print e
             sys.exit(1)
 
         s = rpc.get_smb_connection()
@@ -188,7 +188,7 @@ class RemoteShell(cmd.Cmd):
         # Just in case the service is still created
         try:
            self.__scmr = self.__rpc.get_dce_rpc()
-           self.__scmr.connect() 
+           self.__scmr.connect()
            self.__scmr.bind(scmr.MSRPC_UUID_SCMR)
            resp = scmr.hROpenSCManagerW(self.__scmr)
            self.__scHandle = resp['lpScHandle']
@@ -245,7 +245,7 @@ class RemoteShell(cmd.Cmd):
                   self.__shell + self.__batchFile
         if self.__mode == 'SERVER':
             command += ' & ' + self.__copyBack
-        command += ' & ' + 'del ' + self.__batchFile 
+        command += ' & ' + 'del ' + self.__batchFile
 
         logging.debug('Executing %s' % command)
         resp = scmr.hRCreateServiceW(self.__scmr, self.__scHandle, self.__serviceName, self.__serviceName, lpBinaryPathName=command)
@@ -280,32 +280,32 @@ class SMBMap():
         self.hosts = {}
         self.jobs = {}
         self.search_output_buffer = ''
-     
+
     def login(self, host, username, password, domain):
         try:
             self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
             self.smbconn[host].login(username, password, domain=domain)
-             
+
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest SMB session established on %s...' % (host)
             else:
-                print '[+] User SMB session establishd on %s...' % (host)
+                print '[+] User SMB session established on %s...' % (host)
             return True
 
         except Exception as e:
             print '[!] Authentication error occured'
             print '[!]', e
             return False
- 
+
     def logout(self, host):
         self.smbconn[host].logoff()
-        
+
     def smart_login(self):
         for host in self.hosts.keys():
             success = False
             if self.is_ntlm(self.hosts[host]['passwd']):
                 print '[+] Hash detected, using pass-the-hash to authentiate'
-                if self.hosts[host]['port'] == 445: 
+                if self.hosts[host]['port'] == 445:
                     success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
                     success = self.login_rpc_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
@@ -314,64 +314,64 @@ class SMBMap():
                     success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
                     success = self.login_rpc(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
-            
+
             if not success:
                 print '[!] Authentication error on %s' % (host)
                 self.smbconn.pop(host,None)
                 self.hosts.pop(host, None)
                 continue
-     
-            
+
+
     def login_rpc_hash(self, host, username, ntlmhash, domain):
-        lmhash, nthash = ntlmhash.split(':')    
-    
+        lmhash, nthash = ntlmhash.split(':')
+
         try:
             self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
-            
+
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest RPC session established on %s...' % (host)
             else:
-                print '[+] User RPC session establishd on %s...' % (host) 
+                print '[+] User RPC session established on %s...' % (host)
             return True
 
         except Exception as e:
             print '[!] RPC Authentication error occured'
             return False
- 
+
     def login_rpc(self, host, username, password, domain):
         try:
             self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
             self.smbconn[host].login(username, password, domain)
-            
+
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest RPC session established on %s...' % (host)
             else:
-                print '[+] User RPC session establishd on %s...' % (host) 
+                print '[+] User RPC session established on %s...' % (host)
             return True
-        
+
         except Exception as e:
             print '[!] RPC Authentication error occured'
             return False
- 
+
     def login_hash(self, host, username, ntlmhash, domain):
-        lmhash, nthash = ntlmhash.split(':')    
+        lmhash, nthash = ntlmhash.split(':')
         try:
             self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
-            
+
             if self.smbconn[host].isGuestSession() > 0:
                 print '[+] Guest session established on %s...' % (host)
             else:
-                print '[+] User session establishd on %s...' % (host)
+                print '[+] User session established on %s...' % (host)
             return True
 
         except Exception as e:
             print '[!] Authentication error occured'
             print '[!]', e
             return False
- 
-    def find_open_ports(self, address, port):    
+
+    def find_open_ports(self, address, port):
         result = 1
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -428,8 +428,8 @@ class SMBMap():
             except Exception as e:
                 print e
         print '[+] All jobs complete'
-        print self.search_output_buffer 
-                    
+        print self.search_output_buffer
+
     def list_drives(self, host, share):
         counter = 0
         disks = []
@@ -455,8 +455,8 @@ class SMBMap():
                  print '\t%s' % (disk)
         else:
             print '\tNo mapped network drives'
-        pass    
-        
+        pass
+
     def output_shares(self, host, lsshare, lspath, verbose=True, depth=255):
         shareList = [lsshare] if lsshare else self.get_shares(host)
         for share in shareList:
@@ -487,9 +487,9 @@ class SMBMap():
                     print '\t%s\tREAD ONLY' % (share.ljust(50))
                 else:
                     error += 1
-           
-            try: 
-                if error == 0: 
+
+            try:
+                if error == 0:
                     path = '/'
                     if self.list_files and not self.recursive:
                         if lsshare and lspath:
@@ -501,7 +501,7 @@ class SMBMap():
                             if self.pattern:
                                 print u'\t[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share)
                             dirList = self.list_path(host, share, path, self.pattern, verbose)
-                    
+
                     if self.recursive:
                         if lsshare and lspath:
                             if self.pattern:
@@ -518,7 +518,7 @@ class SMBMap():
                 print '[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno)
                 sys.stdout.flush()
                 sys.exit()
-            
+
             if error > 0 and verbose:
                 print '\t%s\tNO ACCESS' % (share.ljust(50))
 
@@ -527,23 +527,23 @@ class SMBMap():
         shares = []
         for item in range(len(shareList)):
             shares.append(shareList[item]['shi1_netname'][:-1])
-        return shares 
+        return shares
 
     def list_path_recursive(self, host, share, pwd, wildcard, pathList, pattern, verbose, depth):
         root = self.pathify(pwd)
         root = ntpath.normpath(root)
         width = 16
         try:
-            if (root.count('\\')-2) <= int(depth): 
+            if (root.count('\\')-2) <= int(depth):
                 pathList[root] = self.smbconn[host].listPath(share, root)
-                if verbose: 
+                if verbose:
                     print '\t.%s' % (root.strip('*'))
                 if len(pathList[root]) > 2:
                     for smbItem in pathList[root]:
                         try:
                             filename = smbItem.get_longname()
-                            isDir = 'd' if smbItem.is_directory() > 0 else '-' 
-                            filesize = smbItem.get_filesize() 
+                            isDir = 'd' if smbItem.is_directory() > 0 else '-'
+                            filesize = smbItem.get_filesize()
                             readonly = 'w' if smbItem.is_readonly() > 0 else 'r'
                             date = time.ctime(float(smbItem.get_mtime_epoch()))
                             if smbItem.is_directory() <= 0:
@@ -553,8 +553,8 @@ class SMBMap():
                                         dlThis = '%s\\%s/%s' % (share, pwd, filename)
                                         dlThis = dlThis.replace('/', '\\')
                                         print '\t[+] Match found! Downloading: %s' % (ntpath.normpath(dlThis))
-                                        self.download_file(host, dlThis, False) 
-                            if verbose: 
+                                        self.download_file(host, dlThis, False)
+                            if verbose:
                                 print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
                         except SessionError as e:
                             print '[!]', e
@@ -595,7 +595,7 @@ class SMBMap():
             if verbose:
                 print '\t.%s' % (path.ljust(50))
             for item in pathList:
-                filesize = item.get_filesize() 
+                filesize = item.get_filesize()
                 readonly = 'w' if item.is_readonly() > 0 else 'r'
                 date = time.ctime(float(item.get_mtime_epoch()))
                 isDir = 'd' if item.is_directory() > 0 else 'f'
@@ -605,15 +605,15 @@ class SMBMap():
                         fileMatch = re.search(pattern.lower(), filename.lower())
                         if fileMatch:
                             dlThis = '%s\\%s/%s' % (share, ntpath.normpath(pwd.strip('*')), filename)
-                            dlThis = dlThis.replace('/','\\') 
+                            dlThis = dlThis.replace('/','\\')
                             print '\t[+] Match found! Downloading: %s' % (dlThis)
-                            self.download_file(host, dlThis, False) 
+                            self.download_file(host, dlThis, False)
                 if verbose:
                     print '\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename)
             return True
         except Exception as e:
-            return False     
- 
+            return False
+
     def create_dir(self, host, share, path):
         #path = self.pathify(path)
         self.smbconn[host].createDirectory(share, path)
@@ -621,7 +621,7 @@ class SMBMap():
     def remove_dir(self, host, share, path):
         #path = self.pathify(path)
         self.smbconn[host].deleteDirectory(share, path)
-    
+
     def valid_ip(self, address):
         try:
             socket.inet_aton(address)
@@ -631,11 +631,11 @@ class SMBMap():
 
     def filter_results(self, pattern):
         pass
-    
+
     def download_file(self, host, path, verbose=True):
         path = path.replace('/','\\')
         path = ntpath.normpath(path)
-        filename = path.split('\\')[-1]   
+        filename = path.split('\\')[-1]
         share = path.split('\\')[0]
         path = path.replace(share, '')
         try:
@@ -651,7 +651,7 @@ class SMBMap():
                 msg = '[+] File output to: %s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
                 if self.pattern:
                     msg = '\t'+msg
-                print msg 
+                print msg
         except SessionError as e:
             if 'STATUS_ACCESS_DENIED' in str(e):
                 print '[!] Error retrieving file, access denied'
@@ -670,21 +670,21 @@ class SMBMap():
             os.remove(filename)
         out.close()
         return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
-    
+
     def exec_command(self, host, share, command, disp_output = True, host_name=None):
         if self.is_ntlm(self.hosts[host]['passwd']):
             hashes = self.hosts[host]['passwd']
         else:
             hashes = None
-        #domain=self.hosts[host]['domain'] 
+        #domain=self.hosts[host]['domain']
         executer = CMDEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
         result = executer.run(host_name, host)
-        return result   
- 
+        return result
+
     def delete_file(self, host, path, verbose=True):
         path = path.replace('/','\\')
         path = ntpath.normpath(path)
-        filename = path.split('\\')[-1]   
+        filename = path.split('\\')[-1]
         share = path.split('\\')[0]
         path = path.replace(share, '')
         path = path.replace(filename, '')
@@ -705,8 +705,8 @@ class SMBMap():
         except Exception as e:
             print '[!] Error deleting file %s%s%s, unkown error' % (share, path, filename)
             print '[!]', e
-         
-    def upload_file(self, host, src, dst): 
+
+    def upload_file(self, host, src, dst):
         dst = string.replace(dst,'/','\\')
         dst = ntpath.normpath(dst)
         dst = dst.split('\\')
@@ -717,11 +717,11 @@ class SMBMap():
             upFile = open(src, 'rb')
             try:
                 self.smbconn[host].putFile(share, dst, upFile.read)
-                print '[+] Upload complete' 
+                print '[+] Upload complete'
             except Exception as e:
                 print '[!]', e
                 print '[!] Error uploading file, you need to include destination file name in the path'
-            upFile.close() 
+            upFile.close()
         else:
             print '[!] Invalid source. File does not exist'
             sys.exit()
@@ -732,7 +732,7 @@ class SMBMap():
                 lm, ntlm = password.split(':')
                 if len(lm) == 32 and len(ntlm) == 32:
                     return True
-                else: 
+                else:
                     return False
         except Exception as e:
             return False
@@ -744,7 +744,7 @@ class SMBMap():
             dce.connect()
             dce.bind(srvs.MSRPC_UUID_SRVS)
             resp = srvs.hNetrServerGetInfo(dce, 102)
-            
+
             print "Version Major: %d" % resp['InfoStruct']['ServerInfo102']['sv102_version_major']
             print "Version Minor: %d" % resp['InfoStruct']['ServerInfo102']['sv102_version_minor']
             print "Server Name: %s" % resp['InfoStruct']['ServerInfo102']['sv102_name']
@@ -764,12 +764,12 @@ def signal_handler(signal, frame):
     sys.exit(1)
 
 if __name__ == "__main__":
-   
+
     example = 'Examples:\n\n'
     example += '$ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1\n'
     example += '$ python smbmap.py -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -H 172.16.0.20\n'
     example += '$ python smbmap.py -u \'apadmin\' -p \'asdf1234!\' -d ACME -h 10.1.3.30 -x \'net group "Domain Admins" /domain\'\n'
-    
+
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com", epilog=example)
 
     sgroup = parser.add_argument_group("Main arguments")
@@ -784,7 +784,7 @@ if __name__ == "__main__":
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
     sgroup2.add_argument("-x", metavar="COMMAND", dest='command', help="Execute a command ex. 'ipconfig /all'")
-    
+
     sgroup3 = parser.add_argument_group("Filesystem Search", "Options for searching/enumerating the filesystem of the specified host")
     mex_group2 = sgroup3.add_mutually_exclusive_group()
     mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host")
@@ -793,17 +793,17 @@ if __name__ == "__main__":
     sgroup3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Disable verbose output. Only shows shares you have READ/WRITE on, and supresses file listing when performing a search (-A).")
     sgroup3.add_argument("--depth", dest="depth", default=255, help="Traverse a directory tree to a specific depth")
-    
+
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files")
     sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)")
     sgroup4.add_argument("--search-path", dest="search_path", default="C:\\Users", metavar="PATH", help="Specify drive/path to search (used with -F, default C:\\Users), ex 'D:\\HR\\'")
-    
+
     sgroup5 = parser.add_argument_group("Filesystem interaction", "Options for interacting with the specified host's filesystem")
     sgroup5.add_argument("--download", dest='dlPath', metavar="PATH", help="Download a file from the remote system, ex.'C$\\temp\\passwords.txt'")
     sgroup5.add_argument("--upload", nargs=2, dest='upload', metavar=('SRC', 'DST'), help="Upload a file to the remote system ex. '/tmp/payload.exe C$\\temp\\payload.exe'")
     sgroup5.add_argument("--delete", dest="delFile", metavar="PATH TO FILE", help="Delete a remote file, ex. 'C$\\temp\\msf.exe'")
     sgroup5.add_argument("--skip", default=False, action="store_true", help="Skip delete file confirmation prompt")
-    
+
 
     if len(sys.argv) is 1:
         parser.print_help()
@@ -812,15 +812,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     signal.signal(signal.SIGINT, signal_handler)
-    
+
     host = dict()
     mysmb = SMBMap()
 
-    lsshare = False 
+    lsshare = False
     lspath = False
-    
-  
-    
+
+
+
     if args.recursive_dir_list != None:
         mysmb.recursive = True
         mysmb.list_files = True
@@ -830,7 +830,7 @@ if __name__ == "__main__":
             lspath = '\\'.join(lspath[1:])
         except:
             pass
-            
+
     elif args.dir_list != None:
         mysmb.list_files = True
         try:
@@ -839,7 +839,7 @@ if __name__ == "__main__":
             lspath = '\\'.join(lspath[1:])
         except:
             pass
-    
+
     print '[+] Finding open SMB ports....'
     socket.setdefaulttimeout(3)
     if args.hostfile:
@@ -859,8 +859,8 @@ if __name__ == "__main__":
             try:
                 host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
             except:
-                host[args.host.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain } 
-    
+                host[args.host.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+
     mysmb.hosts = host
     mysmb.smart_login()
     if args.pattern:
@@ -875,7 +875,7 @@ if __name__ == "__main__":
             else:
                 search_path = args.search_path
             mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
-        
+
         #if '-v' in sys.argv:
         #    mysmb.get_version(host)    #commented this out since it wasn't in the original usage
 
@@ -891,7 +891,7 @@ if __name__ == "__main__":
             if args.delFile:
                 mysmb.delete_file(host, args.delFile)
                 sys.exit()
-    
+
             if args.list_drives:
                 mysmb.list_drives(host, args.share)
 
@@ -904,8 +904,8 @@ if __name__ == "__main__":
                 print '\tDisk%s\tPermissions' % (' '.ljust(50))
                 print '\t----%s\t-----------' % (' '.ljust(50))
                 mysmb.output_shares(host, lsshare, lspath, args.verbose, args.depth)
-            mysmb.logout(host) 
-        
+            mysmb.logout(host)
+
         except SessionError as e:
             print '[!] Access Denied'
         except Exception as e:
@@ -916,4 +916,4 @@ if __name__ == "__main__":
             sys.stdout.flush()
     if args.file_content_search:
         mysmb.get_search_results()
-     
+
