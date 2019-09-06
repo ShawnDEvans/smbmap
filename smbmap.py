@@ -304,7 +304,7 @@ class SMBMap():
         for host in self.hosts.keys():
             success = False
             if self.is_ntlm(self.hosts[host]['passwd']):
-                print '[+] Hash detected, using pass-the-hash to authentiate'
+                print '[+] Hash detected, using pass-the-hash to authenticate'
                 if self.hosts[host]['port'] == 445:
                     success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
