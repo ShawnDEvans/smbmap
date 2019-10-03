@@ -4,8 +4,6 @@ SMBMap allows users to enumerate samba share drives across an entire domain. Lis
 
 Some of the features have not been thoroughly tested, so changes will be forth coming as bugs are found. I only really find and fix the bugs while I'm on engagements, so progress is a bit slow. Any feedback or bug reports would be appreciated. It's definitely rough around the edges, but I'm just trying to pack in features at the moment. Version 2.0 should clean up the code a lot….whenever that actually happens ;). Thanks for checking it out!! Planned features include simple remote shell (instead of the god awful powershell script in the examples), actual logging, shadow copying ntds.dit automation (Win7 and up only..for now), threading, other things….
 
-You'll need Impacket, PyASN.1 and PyCrypto to use this tool:
-
 ## Install Requirements
 ```
 pip install -r requirements.txt
@@ -16,15 +14,21 @@ pip install -r requirements.txt
 - File upload/download/delete
 - Permission enumeration (writable share, meet Metasploit)
 - Remote Command Execution
-- Distrubted file content searching (new!)
+- Distrubted file content searching (beta!)
 - File name matching (with an auto downoad capability)
 
 ## Help 
 ```
+usage: smbmap.py [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD]
+                 [-s SHARE] [-d DOMAIN] [-P PORT] [-x COMMAND] [-L | -R [PATH]
+                 | -r [PATH]] [-A PATTERN] [-q] [--depth DEPTH] [-F PATTERN]
+                 [--search-path PATH] [--download PATH] [--upload SRC DST]
+                 [--delete PATH TO FILE] [--skip]
+
 SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
 optional arguments:
-  -h, --Help            show this help message and exit
+  -h, --help            show this help message and exit
 
 Main arguments:
   -H HOST               IP of host
@@ -38,7 +42,7 @@ Main arguments:
 Command Execution:
   Options for executing commands on the specified host
 
-  -x COMMAND            Execute a command ex. 'ipconfig /r'
+  -x COMMAND            Execute a command ex. 'ipconfig /all'
 
 Filesystem Search:
   Options for searching/enumerating the filesystem of the specified host
@@ -52,8 +56,10 @@ Filesystem Search:
   -A PATTERN            Define a file name pattern (regex) that auto downloads
                         a file on a match (requires -R or -r), not case
                         sensitive, ex '(web|global).(asax|config)'
-  -q                    Disable verbose output (basically only really useful
-                        with -A)
+  -q                    Disable verbose output. Only shows shares you have
+                        READ/WRITE on, and supresses file listing when
+                        performing a search (-A).
+  --depth DEPTH         Traverse a directory tree to a specific depth
 
 File Content Search:
   Options for searching the content of files
@@ -80,6 +86,7 @@ Examples:
 $ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1
 $ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' -H 172.16.0.20
 $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -H 10.1.3.30 -x 'net group "Domain Admins" /domain'
+
 ```
 
 ## Default Output:
