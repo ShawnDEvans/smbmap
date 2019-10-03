@@ -464,7 +464,7 @@ class SMBMap():
             pathList = {}
             canWrite = False
             try:
-                root = string.replace('/%s' % (PERM_DIR),'/','\\')
+                root = PERM_DIR.replace('/','\\')
                 root = ntpath.normpath(root)
                 self.create_dir(host, share, root)
                 print('\t%s\tREAD, WRITE' % (share.ljust(50)))
