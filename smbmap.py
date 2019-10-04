@@ -143,11 +143,6 @@ class CMDEXEC:
                 serverThread.stop()
         except  (Exception, KeyboardInterrupt) as e:
             print('[!] Something went wrong:', str(e))
-            #import traceback
-            #traceback.print_exc()
-            #logging.critical(str(e))
-            #sys.stdout.flush()
-            #sys.exit(1)
 
 class RemoteShell(cmd.Cmd):
     def __init__(self, share, rpc, mode, serviceName):
