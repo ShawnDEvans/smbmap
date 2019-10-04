@@ -19,12 +19,6 @@ pip install -r requirements.txt
 
 ## Help 
 ```
-usage: smbmap.py [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD]
-                 [-s SHARE] [-d DOMAIN] [-P PORT] [-x COMMAND] [-L | -R [PATH]
-                 | -r [PATH]] [-A PATTERN] [-q] [--depth DEPTH] [-F PATTERN]
-                 [--search-path PATH] [--download PATH] [--upload SRC DST]
-                 [--delete PATH TO FILE] [--skip]
-
 SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
 optional arguments:
@@ -38,14 +32,15 @@ Main arguments:
   -s SHARE              Specify a share (default C$), ex 'C$'
   -d DOMAIN             Domain name (default WORKGROUP)
   -P PORT               SMB port (default 445)
+  -v                    Return the OS version of the remote host
 
 Command Execution:
   Options for executing commands on the specified host
 
   -x COMMAND            Execute a command ex. 'ipconfig /all'
 
-Filesystem Search:
-  Options for searching/enumerating the filesystem of the specified host
+Shard drive Search:
+  Options for searching/enumerating the share of the specified host(s)
 
   -L                    List all drives on the specified host
   -R [PATH]             Recursively list dirs, and files (no share\path lists
@@ -56,8 +51,10 @@ Filesystem Search:
   -A PATTERN            Define a file name pattern (regex) that auto downloads
                         a file on a match (requires -R or -r), not case
                         sensitive, ex '(web|global).(asax|config)'
-  -q                    Disable verbose output. Only shows shares you have
-                        READ/WRITE on, and supresses file listing when
+  -g                    Make the output grep friendly, used with -r or -R
+                        (otherwise it ouputs nothing)
+  -q                    Quiet verbose output. Only shows shares you have READ
+                        or WRITE on, and supresses file listing when
                         performing a search (-A).
   --depth DEPTH         Traverse a directory tree to a specific depth
 
