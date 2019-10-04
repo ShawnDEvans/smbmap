@@ -466,7 +466,7 @@ class SMBMap():
         pass
 
     def output_shares(self, host, lsshare, lspath, verbose=True, depth=255):
-        shareList = [lsshare] if lsshare else self.get_shares(host)
+        shareList = [(lsshare,'')] if lsshare else self.get_shares(host)
         share_privs = ''
         for share in shareList:
             error = 0
@@ -475,16 +475,16 @@ class SMBMap():
             try:
                 root = PERM_DIR.replace('/','\\')
                 root = ntpath.normpath(root)
-                self.create_dir(host, share, root)
+                self.create_dir(host, share[0], root)
                 if not self.pattern and not self.grepable:
-                    print('\t%s\tREAD, WRITE' % (share.ljust(50)))
+                    print('\t{}\tREAD, WRITE\t{}'.format( share[0].ljust(50), share[1] ))
                 if self.grepable:
-                    share_privs = '{}/READ_WRITE'.format(share)
+                    share_privs = '{}/READ_WRITE'.format(share[0])
                 canWrite = True
                 try:
-                    self.remove_dir(host, share, root)
+                    self.remove_dir(host, share[0], root)
                 except:
-                    print('\t[!] Unable to remove test directory at \\\\%s\\%s%s, plreae remove manually' % (host, share, root))
+                    print('\t[!] Unable to remove test directory at \\\\%s\\%s%s, plreae remove manually' % (host, share[0], root))
             except Exception as e:
                 #print e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -494,18 +494,18 @@ class SMBMap():
                 canWrite = False
 
             if canWrite == False:
-                readable = self.list_path(host, share, '', self.pattern, False)
+                readable = self.list_path(host, share[0], '', self.pattern, False)
                 if readable and not self.pattern and not self.grepable:
-                    print('\t%s\tREAD ONLY' % (share.ljust(50)))
+                    print('\t{}\tREAD ONLY\t{}'.format(share[0].ljust(50), share[1]))
                 else:
                     error += 1
                 if self.grepable:
-                    share_privs = '{}/READ_ONLY'.format(share)
+                    share_privs = '{}/READ_ONLY'.format(share[0])
             
             if error > 0 and verbose and not self.pattern and not self.grepable:
-                print('\t%s\tNO ACCESS' % (share.ljust(50)))
+                print('\t{}\tNO ACCESS\t{}'.format(share[0].ljust(50), share[1]))
             elif error > 0 and self.grepable:
-                share_privs = '{}/NO_ACCESS'.format(share)
+                share_privs = '{}/NO_ACCESS'.format(share[0])
             
             try:
                 if error == 0:
@@ -515,13 +515,13 @@ class SMBMap():
                         path = '/'
                     if self.list_files and not self.recursive:
                         if self.pattern:
-                            print('[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share))
-                        dirList = self.list_path(host, share, path, self.pattern, share_privs, verbose)
+                            print('[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share[0]))
+                        dirList = self.list_path(host, share[0], path, self.pattern, share_privs, verbose)
 
                     if self.recursive:
                         if self.pattern:
-                            print("[+] Starting search for files matching \'{}\' on share {}.".format(self.pattern, share))
-                        dirList = self.list_path_recursive(host, share, path, pathList, self.pattern, share_privs, verbose, depth)
+                            print("[+] Starting search for files matching \'{}\' on share {}.".format(self.pattern, share[0]))
+                        dirList = self.list_path_recursive(host, share[0], path, pathList, self.pattern, share_privs, verbose, depth)
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -534,7 +534,7 @@ class SMBMap():
         shareList = self.smbconn[host].listShares()
         shares = []
         for item in range(len(shareList)):
-            shares.append(shareList[item]['shi1_netname'][:-1])
+            shares.append( (shareList[item]['shi1_netname'][:-1], shareList[item]['shi1_remark'][:-1]) )
         return shares
 
     def list_path_recursive(self, host, share, pwd, pathList, pattern, privs, verbose, depth):
@@ -902,8 +902,8 @@ if __name__ == "__main__":
                 if not mysmb.grepable: 
                     print('[+] IP: %s:%s\tName: %s' % (host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50)))
                 if not mysmb.pattern and not mysmb.grepable:
-                    print('\tDisk%s\tPermissions' % (' '.ljust(50)))
-                    print('\t----%s\t-----------' % (' '.ljust(50)))
+                    print('\tDisk%s\tPermissions\tComment' % (' '.ljust(50)))
+                    print('\t----%s\t-----------\t-------' % (' '.ljust(50)))
                 mysmb.output_shares(host, lsshare, lspath, args.verbose, args.depth)
              
             mysmb.logout(host)
