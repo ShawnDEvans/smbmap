@@ -4,11 +4,11 @@ SMBMap allows users to enumerate samba share drives across an entire domain. Lis
 
 Some of the features have not been thoroughly tested, so changes will be forth coming as bugs are found. I only really find and fix the bugs while I'm on engagements, so progress is a bit slow. Any feedback or bug reports would be appreciated. It's definitely rough around the edges, but I'm just trying to pack in features at the moment. Version 2.0 should clean up the code a lot….whenever that actually happens ;). Thanks for checking it out!! Planned features include simple remote shell (instead of the god awful powershell script in the examples), actual logging, shadow copying ntds.dit automation (Win7 and up only..for now), threading, other things….
 
-You'll need Impacket, PyASN.1 and PyCrypto to use this tool:
-
 ## Install Requirements
 ```
-pip install -r requirements.txt
+SMBMap has been updated to Python3!
+
+$ python3 -m pip install -r requirements.txt
 ```
 
 ## Features:
@@ -16,7 +16,7 @@ pip install -r requirements.txt
 - File upload/download/delete
 - Permission enumeration (writable share, meet Metasploit)
 - Remote Command Execution
-- Distrubted file content searching (new!)
+- Distrubted file content searching (beta!)
 - File name matching (with an auto downoad capability)
 
 ## Help
@@ -24,7 +24,7 @@ pip install -r requirements.txt
 SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
 optional arguments:
-  -h, --Help            show this help message and exit
+  -h, --help            show this help message and exit
 
 Main arguments:
   -H HOST               IP of host
@@ -34,14 +34,15 @@ Main arguments:
   -s SHARE              Specify a share (default C$), ex 'C$'
   -d DOMAIN             Domain name (default WORKGROUP)
   -P PORT               SMB port (default 445)
+  -v                    Return the OS version of the remote host
 
 Command Execution:
   Options for executing commands on the specified host
 
-  -x COMMAND            Execute a command ex. 'ipconfig /r'
+  -x COMMAND            Execute a command ex. 'ipconfig /all'
 
-Filesystem Search:
-  Options for searching/enumerating the filesystem of the specified host
+Shard drive Search:
+  Options for searching/enumerating the share of the specified host(s)
 
   -L                    List all drives on the specified host
   -R [PATH]             Recursively list dirs, and files (no share\path lists
@@ -52,8 +53,12 @@ Filesystem Search:
   -A PATTERN            Define a file name pattern (regex) that auto downloads
                         a file on a match (requires -R or -r), not case
                         sensitive, ex '(web|global).(asax|config)'
-  -q                    Disable verbose output (basically only really useful
-                        with -A)
+  -g                    Make the output grep friendly, used with -r or -R
+                        (otherwise it ouputs nothing)
+  -q                    Quiet verbose output. Only shows shares you have READ
+                        or WRITE on, and supresses file listing when
+                        performing a search (-A).
+  --depth DEPTH         Traverse a directory tree to a specific depth
 
 File Content Search:
   Options for searching the content of files
@@ -80,32 +85,23 @@ Examples:
 $ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1
 $ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' -H 172.16.0.20
 $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -H 10.1.3.30 -x 'net group "Domain Admins" /domain'
+
 ```
 
 ## Default Output:
 ```
-$  python smbmap.py --host-file smb-hosts.txt -u jsmith -p 'R33nisP!nckl3' -d ABC
-[+] Reading from stdin
+$ ./smbmap.py -H 192.168.12.123 -u administrator -p asdf1234
 [+] Finding open SMB ports....
-[+] User SMB session established...
-[+] IP: 192.168.0.5:445 Name: unkown
-        Disk                                                    Permissions
-        ----                                                    -----------
-        ADMIN$                                                  READ, WRITE
-        C$                                                      READ, WRITE
-        IPC$                                                    NO ACCESS
-        TMPSHARE                                                READ, WRITE
-[+] User SMB session established...
-[+] IP: 192.168.2.50:445        Name: unknown
-        Disk                                                    Permissions
-        ----                                                    -----------
-        IPC$                                                    NO ACCESS
-        print$                                                  READ, WRITE
-        My Dirs                                                 NO ACCESS
-        WWWROOT_OLD                                             NO ACCESS
-        ADMIN$                                                  READ, WRITE
-        C$                                                      READ, WRITE
+[+] User SMB session established on 192.168.86.39...
+[+] IP: 192.168.86.39:445	Name: biffhenderson-pc.lan
+	Disk                                Permissions	    Comment
+	----                                -----------	    -------
+	ADMIN$                              READ, WRITE	    Remote Admin
+	C$                                  READ, WRITE	    Default share
+	IPC$                                NO ACCESS	    Remote IPC
+	Users                               READ, WRITE
 ```
+
 ## Command execution:
 ```
 $ python smbmap.py -u ariley -p 'P@$$w0rd1234!' -d ABC -x 'net group "Domain Admins" /domain' -H 192.168.2.50
@@ -121,6 +117,7 @@ Members
 abcadmin
 The command completed successfully.
 ```
+
 ## Non recursive path listing (ls):
 ```
 $ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$\Users'
@@ -143,7 +140,6 @@ $ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$\Users'
 ```
 
 ## File Content Searching:
-
 ```
 $ python smbmap.py --host-file ~/Desktop/smb-workstation-sml.txt -u NopSec -p 'NopSec1234!' -d widgetworld -F '[1-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]'
 [+] Finding open SMB ports....
@@ -203,7 +199,6 @@ $ python smbmap.py -u jsmith -p 'R33nisP!nckle' -d ABC -H 192.168.2.50 -x 'power
 ```
 
 ## Attackers Netcat Listener:
-
 ```
 $ nc -l 4445
 Microsoft Windows [Version 6.1.7601]
