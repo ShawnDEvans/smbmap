@@ -6,7 +6,9 @@ Some of the features have not been thoroughly tested, so changes will be forth c
 
 ## Install Requirements
 ```
-pip install -r requirements.txt
+SMBMap has been updated to Python3!
+
+$ python3 -m pip install -r requirements.txt
 ```
 
 ## Features:
@@ -88,27 +90,17 @@ $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -H 10.1.3.30 -x 'net grou
 
 ## Default Output:
 ```
-$  python smbmap.py --host-file smb-hosts.txt -u jsmith -p 'R33nisP!nckl3' -d ABC
-[+] Reading from stdin
+$ ./smbmap.py -H 192.168.12.123 -u administrator -p asdf1234 
 [+] Finding open SMB ports....
-[+] User SMB session establishd...
-[+] IP: 192.168.0.5:445 Name: unkown                                            
-        Disk                                                    Permissions
-        ----                                                    -----------
-        ADMIN$                                                  READ, WRITE
-        C$                                                      READ, WRITE
-        IPC$                                                    NO ACCESS
-        TMPSHARE                                                READ, WRITE
-[+] User SMB session establishd...
-[+] IP: 192.168.2.50:445        Name: unkown                                            
-        Disk                                                    Permissions
-        ----                                                    -----------
-        IPC$                                                    NO ACCESS
-        print$                                                  READ, WRITE
-        My Dirs                                                 NO ACCESS
-        WWWROOT_OLD                                             NO ACCESS
-        ADMIN$                                                  READ, WRITE
-        C$                                                      READ, WRITE
+[+] User SMB session establishd on 192.168.86.39...
+[+] IP: 192.168.86.39:445	Name: biffhenderson-pc.lan                                 
+	Disk                                Permissions	    Comment
+	----                                -----------	    -------
+	ADMIN$                              READ, WRITE	    Remote Admin
+	C$                                  READ, WRITE	    Default share
+	IPC$                                NO ACCESS	    Remote IPC
+	Users                               READ, WRITE	
+
 ```
 ## Command execution:
 ```
