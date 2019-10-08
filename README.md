@@ -40,6 +40,7 @@ Command Execution:
   Options for executing commands on the specified host
 
   -x COMMAND            Execute a command ex. 'ipconfig /all'
+  --mode CMDMODE        Set the execution method, wmi or psexec, default wmi
 
 Shard drive Search:
   Options for searching/enumerating the share of the specified host(s)
