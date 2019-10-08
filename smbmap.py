@@ -287,7 +287,7 @@ class SMBMap():
                     print('[+] Guest SMB session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
-                    print('[+] User SMB session establishd on %s...' % (host))
+                    print('[+] User SMB session established on %s...' % (host))
             return True
 
         except Exception as e:
@@ -303,7 +303,7 @@ class SMBMap():
             success = False
             if self.is_ntlm(self.hosts[host]['passwd']):
                 if verbose:
-                    print('[+] Hash detected, using pass-the-hash to authentiate')
+                    print('[+] Hash detected, using pass-the-hash to authenticate')
                 if self.hosts[host]['port'] == 445:
                     success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], verbose)
                 else:
@@ -333,12 +333,12 @@ class SMBMap():
                     print('[+] Guest RPC session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
-                    print('[+] User RPC session establishd on %s...' % (host))
+                    print('[+] User RPC session established on %s...' % (host))
             return True
 
         except Exception as e:
             if verbose:
-                print('[!] RPC Authentication error occured')
+                print('[!] RPC Authentication error occurred')
             return False
 
     def login_rpc(self, host, username, password, domain, verbose=True):
@@ -347,15 +347,15 @@ class SMBMap():
             self.smbconn[host].login(username, password, domain)
 
             if self.smbconn[host].isGuestSession() > 0:
-                if verbose and not self.grepable: 
+                if verbose and not self.grepable:
                     print('[+] Guest RPC session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
-                    print('[+] User RPC session establishd on %s...' % (host))
+                    print('[+] User RPC session established on %s...' % (host))
             return True
 
         except Exception as e:
-            print('[!] RPC Authentication error occured')
+            print('[!] RPC Authentication error occurred')
             return False
 
     def login_hash(self, host, username, ntlmhash, domain, verbose=True):
@@ -369,18 +369,18 @@ class SMBMap():
                     print('[+] Guest session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
-                    print('[+] User session establishd on %s...' % (host))
+                    print('[+] User session established on %s...' % (host))
             return True
 
         except Exception as e:
-            print('[!] Authentication error occured')
+            print('[!] Authentication error occurred')
             print('[!]', e)
             return False
 
     def find_open_ports(self, address, port, verbose=True):
         result = 1
         try:
-            if verbose and not self.grepable: 
+            if verbose and not self.grepable:
                 print('[+] Finding open SMB ports....')
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(1)
@@ -484,7 +484,7 @@ class SMBMap():
                 try:
                     self.remove_dir(host, share[0], root)
                 except:
-                    print('\t[!] Unable to remove test directory at \\\\%s\\%s%s, plreae remove manually' % (host, share[0], root))
+                    print('\t[!] Unable to remove test directory at \\\\%s\\%s%s, please remove manually' % (host, share[0], root))
             except Exception as e:
                 #print e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -501,12 +501,12 @@ class SMBMap():
                     error += 1
                 if self.grepable:
                     share_privs = '{}/READ_ONLY'.format(share[0])
-            
+
             if error > 0 and verbose and not self.pattern and not self.grepable:
                 print('\t{}\tNO ACCESS\t{}'.format(share[0].ljust(50), share[1]))
             elif error > 0 and self.grepable:
                 share_privs = '{}/NO_ACCESS'.format(share[0])
-            
+
             try:
                 if error == 0:
                     if lspath:
@@ -564,7 +564,7 @@ class SMBMap():
                             if verbose and not self.grepable:
                                 print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
                             if self.grepable:
-                                if filename != '.' and filename != '..': 
+                                if filename != '.' and filename != '..':
                                     print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, root.replace('\*',''), filename, str(filesize), date))
                         except SessionError as e:
                             print('[!]', e)
@@ -621,7 +621,7 @@ class SMBMap():
                 if verbose and not self.grepable:
                     print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
                 if self.grepable:
-                    if filename != '.' and filename != '..': 
+                    if filename != '.' and filename != '..':
                         print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, pwd.replace('\*',''), filename, str(filesize), date))
             return True
         except Exception as e:
@@ -679,7 +679,7 @@ class SMBMap():
                 out.close()
                 os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
         except Exception as e:
-            print('[!] Error retrieving file, unkown error')
+            print('[!] Error retrieving file, unknown error')
             os.remove(filename)
         out.close()
         return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
@@ -713,10 +713,10 @@ class SMBMap():
             elif 'STATUS_SHARING_VIOLATION' in str(e):
                 print('[!] Error retrieving file, sharing violation')
             else:
-                print('[!] Error deleting file %s%s%s, unkown error' % (share, path, filename))
+                print('[!] Error deleting file %s%s%s, unknown error' % (share, path, filename))
                 print('[!]', e)
         except Exception as e:
-            print('[!] Error deleting file %s%s%s, unkown error' % (share, path, filename))
+            print('[!] Error deleting file %s%s%s, unknown error' % (share, path, filename))
             print('[!]', e)
 
     def upload_file(self, host, src, dst):
@@ -755,7 +755,7 @@ class SMBMap():
         if not domain:
             domain = self.smbconn[host].getServerName()
         print("[+] {}:{} is running {} (name:{}) (domain:{})".format(host, 445, self.smbconn[host].getServerOS(), self.smbconn[host].getServerName(), domain))
-        
+
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
     sys.exit(1)
@@ -765,7 +765,7 @@ if __name__ == "__main__":
     example = 'Examples:\n\n'
     example += '$ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1\n'
     example += '$ python smbmap.py -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -H 172.16.0.20\n'
-    example += '$ python smbmap.py -u \'apadmin\' -p \'asdf1234!\' -d ACME -H 10.1.3.30 -x \'net group "Domain Admins" /domain\'\n'
+    example += '$ python smbmap.py -u \'apadmin\' -p \'asdf1234!\' -d ACME -h 10.1.3.30 -x \'net group "Domain Admins" /domain\'\n'
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com", epilog=example)
 
@@ -790,12 +790,12 @@ if __name__ == "__main__":
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
-    mex_group3.add_argument("-g", dest="grepable", default=False, action="store_true", help="Make the output grep friendly, used with -r or -R (otherwise it ouputs nothing)")
-    sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and supresses file listing when performing a search (-A).")
+    mex_group3.add_argument("-g", dest="grepable", default=False, action="store_true", help="Make the output grep friendly, used with -r or -R (otherwise it outputs nothing)")
+    sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
     sgroup3.add_argument("--depth", dest="depth", default=255, help="Traverse a directory tree to a specific depth")
 
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files")
-    sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requies admin access to execute commands, and powershell on victim host)")
+    sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requires admin access to execute commands, and PowerShell on victim host)")
     sgroup4.add_argument("--search-path", dest="search_path", default="C:\\Users", metavar="PATH", help="Specify drive/path to search (used with -F, default C:\\Users), ex 'D:\\HR\\'")
 
     sgroup5 = parser.add_argument_group("Filesystem interaction", "Options for interacting with the specified host's filesystem")
@@ -854,7 +854,7 @@ if __name__ == "__main__":
                     try:
                         host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
                     except:
-                        host[ip.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+                        host[ip.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
             except Exception as e:
                 print('[!]', e)
                 continue
@@ -864,7 +864,7 @@ if __name__ == "__main__":
             try:
                 host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
             except:
-                host[args.host.strip()] = { 'name' : 'unkown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+                host[args.host.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
 
     mysmb.hosts = host
     mysmb.smart_login(args.verbose)
@@ -891,21 +891,21 @@ if __name__ == "__main__":
 
             if args.list_drives:
                 mysmb.list_drives(host, args.share)
-            
+
             if args.command:
                 mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'])
 
             if args.version:
                 mysmb.get_version(host)
-             
+
             if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
-                if not mysmb.grepable: 
+                if not mysmb.grepable:
                     print('[+] IP: %s:%s\tName: %s' % (host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50)))
                 if not mysmb.pattern and not mysmb.grepable:
                     print('\tDisk%s\tPermissions\tComment' % (' '.ljust(50)))
                     print('\t----%s\t-----------\t-------' % (' '.ljust(50)))
                 mysmb.output_shares(host, lsshare, lspath, args.verbose, args.depth)
-             
+
             mysmb.logout(host)
 
         except SessionError as e:
