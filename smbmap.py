@@ -212,7 +212,7 @@ class RemoteShell(cmd.Cmd):
         self.execute_remote('cd ' )
         if len(self.__outputBuffer) > 0:
             # Stripping CR/LF
-            self.prompt = string.replace(self.__outputBuffer,'\r\n','') + '>'
+            self.prompt = self.__outputBuffer.replace('\r\n','') + '>'
             self.__outputBuffer = ''
 
     def do_CD(self, s):
@@ -224,7 +224,7 @@ class RemoteShell(cmd.Cmd):
 
     def get_output(self):
         def output_callback(data):
-            self.__outputBuffer += data
+            self.__outputBuffer += data.decode()
 
         if self.__mode == 'SHARE':
             self.transferClient.getFile(self.__share, OUTPUT_FILENAME, output_callback)
@@ -720,7 +720,7 @@ class SMBMap():
             print('[!]', e)
 
     def upload_file(self, host, src, dst):
-        dst = string.replace(dst,'/','\\')
+        dst = dst.replace('/','\\')
         dst = ntpath.normpath(dst)
         dst = dst.split('\\')
         share = dst[0]
