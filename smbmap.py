@@ -19,6 +19,9 @@ from impacket.examples import logger
 from impacket import version, smbserver
 from impacket.smbconnection import *
 from impacket.dcerpc.v5 import transport, scmr
+from impacket.dcerpc.v5.dcomrt import DCOMConnection
+from impacket.dcerpc.v5.dcom import wmi
+from impacket.dcerpc.v5.dtypes import NULL
 
 import ntpath
 import cmd
@@ -93,6 +96,224 @@ class SMBServer(Thread):
         self.smb.socket.close()
         self.smb.server_close()
         self._Thread__stop()
+
+class WMIEXEC:
+    def __init__(self, command='', username='', password='', domain='', hashes=None, aesKey=None, share=None,
+                 noOutput=False, doKerberos=False, kdcHost=None):
+        self.__command = command
+        self.__username = username
+        self.__password = password
+        self.__domain = domain
+        self.__lmhash = ''
+        self.__nthash = ''
+        self.__aesKey = aesKey
+        self.__share = share
+        self.__noOutput = noOutput
+        self.__doKerberos = doKerberos
+        self.__kdcHost = kdcHost
+        self.shell = None
+        if hashes is not None:
+            self.__lmhash, self.__nthash = hashes.split(':')
+
+    def run(self, addr):
+        if self.__noOutput is False:
+            smbConnection = SMBConnection(addr, addr)
+            if self.__doKerberos is False:
+                smbConnection.login(self.__username, self.__password, self.__domain, self.__lmhash, self.__nthash)
+            else:
+                smbConnection.kerberosLogin(self.__username, self.__password, self.__domain, self.__lmhash,
+                                            self.__nthash, self.__aesKey, kdcHost=self.__kdcHost)
+
+            dialect = smbConnection.getDialect()
+            if dialect == SMB_DIALECT:
+                logging.info("SMBv1 dialect used")
+            elif dialect == SMB2_DIALECT_002:
+                logging.info("SMBv2.0 dialect used")
+            elif dialect == SMB2_DIALECT_21:
+                logging.info("SMBv2.1 dialect used")
+            else:
+                logging.info("SMBv3.0 dialect used")
+        else:
+            smbConnection = None
+
+        dcom = DCOMConnection(addr, self.__username, self.__password, self.__domain, self.__lmhash, self.__nthash,
+                              self.__aesKey, oxidResolver=True, doKerberos=self.__doKerberos, kdcHost=self.__kdcHost)
+        try:
+            iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login,wmi.IID_IWbemLevel1Login)
+            iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+            iWbemServices= iWbemLevel1Login.NTLMLogin('//./root/cimv2', NULL, NULL)
+            iWbemLevel1Login.RemRelease()
+
+            win32Process,_ = iWbemServices.GetObject('Win32_Process')
+
+            self.shell = RemoteShellWMI(self.__share, win32Process, smbConnection)
+            if self.__command != ' ':
+                self.shell.onecmd(self.__command)
+            else:
+                self.shell.cmdloop()
+        except (Exception, KeyboardInterrupt) as e:
+            #import traceback
+            #traceback.print_exc()
+            logging.error(str(e))
+            if smbConnection is not None:
+                smbConnection.logoff()
+            dcom.disconnect()
+            sys.stdout.flush()
+            sys.exit(1)
+
+        if smbConnection is not None:
+            smbConnection.logoff()
+        dcom.disconnect()
+
+class RemoteShellWMI(cmd.Cmd):
+    def __init__(self, share, win32Process, smbConnection):
+        cmd.Cmd.__init__(self)
+        self.__share = share
+        self.__output = '\\' + OUTPUT_FILENAME 
+        self.__outputBuffer = ''
+        self.__shell = 'cmd.exe /Q /c '
+        self.__win32Process = win32Process
+        self.__transferClient = smbConnection
+        self.__pwd = 'C:\\'
+        self.__noOutput = False
+        self.intro = '[!] Launching semi-interactive shell - Careful what you execute\n[!] Press help for extra shell commands'
+
+        # We don't wanna deal with timeouts from now on.
+        if self.__transferClient is not None:
+            self.__transferClient.setTimeout(100000)
+            self.do_cd('\\')
+        else:
+            self.__noOutput = True
+
+    def do_shell(self, s):
+        os.system(s)
+
+    def do_help(self, line):
+        print("""
+ lcd {path}                 - changes the current local directory to {path}
+ exit                       - terminates the server process (and this session)
+ put {src_file, dst_path}   - uploads a local file to the dst_path (dst_path = default current directory)
+ get {file}                 - downloads pathname to the current local dir 
+ ! {cmd}                    - executes a local shell cmd
+""")
+
+    def do_lcd(self, s):
+        if s == '':
+            print(os.getcwd())
+        else:
+            try:
+                os.chdir(s)
+            except Exception as e:
+                logging.error(str(e))
+
+    def do_get(self, src_path):
+        try:
+            import ntpath
+            newPath = ntpath.normpath(ntpath.join(self.__pwd, src_path))
+            drive, tail = ntpath.splitdrive(newPath) 
+            filename = ntpath.basename(tail)
+            fh = open(filename,'wb')
+            logging.info("Downloading %s\\%s" % (drive, tail))
+            self.__transferClient.getFile(drive[:-1]+'$', tail, fh.write)
+            fh.close()
+        except Exception as e:
+            logging.error(str(e))
+            os.remove(filename)
+            pass
+
+    def do_put(self, s):
+        try:
+            params = s.split(' ')
+            if len(params) > 1:
+                src_path = params[0]
+                dst_path = params[1]
+            elif len(params) == 1:
+                src_path = params[0]
+                dst_path = ''
+
+            src_file = os.path.basename(src_path)
+            fh = open(src_path, 'rb')
+            dst_path = string.replace(dst_path, '/','\\')
+            import ntpath
+            pathname = ntpath.join(ntpath.join(self.__pwd,dst_path), src_file)
+            drive, tail = ntpath.splitdrive(pathname)
+            logging.info("Uploading %s to %s" % (src_file, pathname))
+            self.__transferClient.putFile(drive[:-1]+'$', tail, fh.read)
+            fh.close()
+        except Exception as e:
+            logging.critical(str(e))
+            pass
+
+    def do_exit(self, s):
+        return True
+
+    def emptyline(self):
+        return False
+
+    def do_cd(self, s):
+        self.execute_remote('cd ' + s)
+        if len(self.__outputBuffer.strip('\r\n')) > 0:
+            print(self.__outputBuffer)
+            self.__outputBuffer = ''
+        else:
+            self.__pwd = ntpath.normpath(ntpath.join(self.__pwd, s))
+            self.execute_remote('cd ')
+            self.__pwd = self.__outputBuffer.strip('\r\n')
+            self.prompt = self.__pwd + '>'
+            self.__outputBuffer = ''
+
+    def default(self, line):
+        # Let's try to guess if the user is trying to change drive
+        if len(line) == 2 and line[1] == ':':
+            # Execute the command and see if the drive is valid
+            self.execute_remote(line)
+            if len(self.__outputBuffer.strip('\r\n')) > 0: 
+                # Something went wrong
+                print(self.__outputBuffer)
+                self.__outputBuffer = ''
+            else:
+                # Drive valid, now we should get the current path
+                self.__pwd = line
+                self.execute_remote('cd ')
+                self.__pwd = self.__outputBuffer.strip('\r\n')
+                self.prompt = self.__pwd + '>'
+                self.__outputBuffer = ''
+        else:
+            if line != '':
+                self.send_data(line)
+
+    def get_output(self):
+        def output_callback(data):
+            self.__outputBuffer += data.decode()
+
+        if self.__noOutput is True:
+            self.__outputBuffer = ''
+            return
+
+        while True:
+            try:
+                self.__transferClient.getFile(self.__share, self.__output, output_callback)
+                break
+            except Exception as e:
+                if str(e).find('STATUS_SHARING_VIOLATION') >=0:
+                    # Output not finished, let's wait
+                    time.sleep(1)
+                    pass
+                else:
+                    pass 
+        self.__transferClient.deleteFile(self.__share, self.__output)
+
+    def execute_remote(self, data):
+        command = self.__shell + data 
+        if self.__noOutput is False:
+            command += ' 1> ' + '\\\\127.0.0.1\\%s' % self.__share + self.__output  + ' 2>&1'
+        self.__win32Process.Create(command, self.__pwd, None)
+        self.get_output()
+
+    def send_data(self, data):
+        self.execute_remote(data)
+        print(self.__outputBuffer)
+        self.__outputBuffer = ''
 
 class CMDEXEC:
     def __init__(self, username='', password='', domain='', hashes=None, aesKey=None,
@@ -486,7 +707,6 @@ class SMBMap():
                 except:
                     print('\t[!] Unable to remove test directory at \\\\%s\\%s%s, please remove manually' % (host, share[0], root))
             except Exception as e:
-                #print e
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 #print(exc_type, fname, exc_tb.tb_lineno)
@@ -684,14 +904,18 @@ class SMBMap():
         out.close()
         return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
 
-    def exec_command(self, host, share, command, disp_output = True, host_name=None):
+    def exec_command(self, host, share, command, disp_output = True, host_name=None, mode='wmi'):
         if self.is_ntlm(self.hosts[host]['passwd']):
             hashes = self.hosts[host]['passwd']
         else:
             hashes = None
         #domain=self.hosts[host]['domain']
-        executer = CMDEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
-        result = executer.run(host_name, host)
+        if mode == 'wmi':
+            executer = WMIEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
+            result = executer.run(host)
+        else:
+            executer = CMDEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
+            result = executer.run(host_name, host)
         return result
 
     def delete_file(self, host, path, verbose=True):
@@ -782,6 +1006,7 @@ if __name__ == "__main__":
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
     sgroup2.add_argument("-x", metavar="COMMAND", dest='command', help="Execute a command ex. 'ipconfig /all'")
+    sgroup2.add_argument("--mode", metavar="CMDMODE", dest='mode', default='wmi', help="Set the execution method, wmi or psexec, default wmi", choices=['wmi','psexec'])
 
     sgroup3 = parser.add_argument_group("Shard drive Search", "Options for searching/enumerating the share of the specified host(s)")
     mex_group2 = sgroup3.add_mutually_exclusive_group()
@@ -893,7 +1118,7 @@ if __name__ == "__main__":
                 mysmb.list_drives(host, args.share)
 
             if args.command:
-                mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'])
+                mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'], args.mode)
 
             if args.version:
                 mysmb.get_version(host)
