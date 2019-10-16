@@ -512,8 +512,6 @@ class SMBMap():
             return True
 
         except Exception as e:
-            if verbose:
-                print('[!] Authentication error on %s' % (host))
             return False
 
     def logout(self, host):
@@ -714,7 +712,7 @@ class SMBMap():
                 canWrite = False
 
             if canWrite == False:
-                readable = self.list_path(host, share[0], '', self.pattern, False)
+                readable = self.list_path(host, share[0], '', self.pattern, share_privs, False)
                 if readable and not self.pattern and not self.grepable:
                     print('\t{}\tREAD ONLY\t{}'.format(share[0].ljust(50), share[1]))
                 else:
