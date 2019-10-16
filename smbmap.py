@@ -686,11 +686,13 @@ class SMBMap():
 
     def output_shares(self, host, lsshare, lspath, verbose=True, depth=255):
         shareList = [(lsshare,'')] if lsshare else self.get_shares(host)
-        share_privs = ''
         for share in shareList:
+            share_privs = ''
             error = 0
             pathList = {}
             canWrite = False
+            readonly = False
+            noaccess = False
             try:
                 root = PERM_DIR.replace('/','\\')
                 root = ntpath.normpath(root)
@@ -709,24 +711,26 @@ class SMBMap():
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 #print(exc_type, fname, exc_tb.tb_lineno)
                 sys.stdout.flush()
-                canWrite = False
+            
+            try:
+                if self.smbconn[host].listPath(share[0], self.pathify('/')) and canWrite == False:
+                    readonly = True
+            except Exception as e:
+                noaccess = True
+                share_privs = '{}/NO_ACCESS'.format(share[0])
 
-            if canWrite == False:
-                readable = self.list_path(host, share[0], '', self.pattern, share_privs, False)
-                if readable and not self.pattern and not self.grepable:
+            if canWrite == False and readonly == True:
+                if not self.pattern and not self.grepable:
                     print('\t{}\tREAD ONLY\t{}'.format(share[0].ljust(50), share[1]))
-                else:
-                    error += 1
+
                 if self.grepable:
                     share_privs = '{}/READ_ONLY'.format(share[0])
 
-            if error > 0 and verbose and not self.pattern and not self.grepable:
+            if noaccess == True and verbose and not self.pattern and not self.grepable:
                 print('\t{}\tNO ACCESS\t{}'.format(share[0].ljust(50), share[1]))
-            elif error > 0 and self.grepable:
-                share_privs = '{}/NO_ACCESS'.format(share[0])
 
             try:
-                if error == 0:
+                if noaccess == False:
                     if lspath:
                         path = lspath
                     else:
@@ -767,7 +771,7 @@ class SMBMap():
                     for smbItem in pathList[root]:
                         try:
                             filename = smbItem.get_longname()
-                            isDir = 'd' if smbItem.is_directory() > 0 else '-'
+                            isDir = 'd' if smbItem.is_directory() > 0 else 'f'
                             filesize = smbItem.get_filesize()
                             readonly = 'w' if smbItem.is_readonly() > 0 else 'r'
                             date = time.ctime(float(smbItem.get_mtime_epoch()))
@@ -843,6 +847,7 @@ class SMBMap():
                         print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, pwd.replace('\*',''), filename, str(filesize), date))
             return True
         except Exception as e:
+            print('[!] FUCK: {}'.format(e))
             return False
 
     def create_dir(self, host, share, path):
