@@ -489,6 +489,7 @@ class SMBMap():
 
     def __init__(self):
         self.recursive = False
+        self.dir_only = False
         self.list_files = False
         self.smbconn = {}
         self.isLoggedIn = False
@@ -784,10 +785,12 @@ class SMBMap():
                                         print('[+] Match found! Downloading: %s' % (ntpath.normpath(dlThis)))
                                         self.download_file(host, dlThis, False)
                             if verbose and not self.grepable:
-                                print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
+                                if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
+                                    print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
                             if self.grepable:
                                 if filename != '.' and filename != '..':
-                                    print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, root.replace('\*',''), filename, str(filesize), date))
+                                    if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
+                                        print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, root.replace('\*',''), filename, str(filesize), date))
                         except SessionError as e:
                             print('[!]', e)
                             continue
@@ -841,10 +844,12 @@ class SMBMap():
                             print('[+] Match found! Downloading: %s' % (dlThis))
                             self.download_file(host, dlThis, False)
                 if verbose and not self.grepable:
-                    print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
+                    if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
+                        print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
                 if self.grepable:
                     if filename != '.' and filename != '..':
-                        print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, pwd.replace('\*',''), filename, str(filesize), date))
+                        if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
+                            print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, pwd.replace('\*',''), filename, str(filesize), date))
             return True
         except Exception as e:
             print('[!] FUCK: {}'.format(e))
@@ -1019,6 +1024,7 @@ if __name__ == "__main__":
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
     mex_group3.add_argument("-g", dest="grepable", default=False, action="store_true", help="Make the output grep friendly, used with -r or -R (otherwise it outputs nothing)")
+    sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
     sgroup3.add_argument("--depth", dest="depth", default=255, help="Traverse a directory tree to a specific depth")
 
@@ -1054,6 +1060,9 @@ if __name__ == "__main__":
         mysmb.pattern = args.pattern
         args.verbose = False
         args.grepable = False
+
+    if args.dir_only:
+        mysmb.dir_only = True
 
     if args.recursive_dir_list != None:
         mysmb.recursive = True
