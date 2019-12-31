@@ -790,7 +790,7 @@ class SMBMap():
                             if self.grepable:
                                 if filename != '.' and filename != '..':
                                     if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
-                                        print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, root.replace('\*',''), filename, str(filesize), date))
+                                        print('host:{}, privs:{}, isDir:{}, name:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, root.replace('\*',''), filename, str(filesize), date))
                         except SessionError as e:
                             print('[!]', e)
                             continue
@@ -849,7 +849,7 @@ class SMBMap():
                 if self.grepable:
                     if filename != '.' and filename != '..':
                         if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
-                            print('host:{}, privs:{}, isDir:{}, file:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, pwd.replace('\*',''), filename, str(filesize), date))
+                            print('host:{}, privs:{}, isDir:{}, name:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, pwd.replace('\*',''), filename, str(filesize), date))
             return True
         except Exception as e:
             print('[!] FUCK: {}'.format(e))
