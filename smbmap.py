@@ -1039,7 +1039,7 @@ if __name__ == "__main__":
     sgroup5.add_argument("--skip", default=False, action="store_true", help="Skip delete file confirmation prompt")
 
 
-    if len(sys.argv) is 1:
+    if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
