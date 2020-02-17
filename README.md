@@ -2,7 +2,9 @@
 
 SMBMap allows users to enumerate samba share drives across an entire domain. List share drives, drive permissions, share contents, upload/download functionality, file name auto-download pattern matching, and even execute remote commands. This tool was designed with pen testing in mind, and is intended to simplify searching for potentially sensitive data across large networks.
 
-Some of the features have not been thoroughly tested, so changes will be forth coming as bugs are found. I only really find and fix the bugs while I'm on engagements, so progress is a bit slow. Any feedback or bug reports would be appreciated. It's definitely rough around the edges, but I'm just trying to pack in features at the moment. Version 2.0 should clean up the code a lot….whenever that actually happens ;). Thanks for checking it out!! Planned features include simple remote shell (instead of the god awful powershell script in the examples), actual logging, shadow copying ntds.dit automation (Win7 and up only..for now), threading, other things….
+Some of the features have not been thoroughly tested, so changes will be forth coming as bugs are found. I only really find and fix the bugs while I'm on engagements, so progress is a bit slow. Any feedback or bug reports would be appreciated. It's definitely rough around the edges, but I'm just trying to pack in features at the moment. Version 2.0 should clean up the code a lot….whenever that actually happens ;). Thanks for checking it out!!
+
+There's a known oddity in the SMBServer component used for the file content search feature. For some reason it throws an exception in the threading library. It still works, but the error is annoying none the less.
 
 ## Install Requirements
 ```
@@ -21,7 +23,7 @@ $ python3 -m pip install -r requirements.txt
 
 ## Help
 ```
-SMBMap - Samba Share Enumerator | Shawn Evans - sevans@NopSec.com 
+SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -55,20 +57,25 @@ Shard drive Search:
                         a file on a match (requires -R or -r), not case
                         sensitive, ex '(web|global).(asax|config)'
   -g                    Make the output grep friendly, used with -r or -R
-                        (otherwise it ouputs nothing)
+                        (otherwise it outputs nothing)
+  --dir-only            List only directories, ommit files.
+  --no-write-check      Skip check to see if drive grants WRITE access.
   -q                    Quiet verbose output. Only shows shares you have READ
-                        or WRITE on, and supresses file listing when
+                        or WRITE on, and suppresses file listing when
                         performing a search (-A).
   --depth DEPTH         Traverse a directory tree to a specific depth
 
 File Content Search:
   Options for searching the content of files
 
-  -F PATTERN            File content search, -F '[Pp]assword' (requies admin
-                        access to execute commands, and powershell on victim
+  -F PATTERN            File content search, -F '[Pp]assword' (requires admin
+                        access to execute commands, and PowerShell on victim
                         host)
   --search-path PATH    Specify drive/path to search (used with -F, default
                         C:\Users), ex 'D:\HR\'
+  --search-timeout TIMEOUT
+                        Specifcy a timeout (in seconds) before the file search
+                        job gets killed. Default is 300 seconds.
 
 Filesystem interaction:
   Options for interacting with the specified host's filesystem
@@ -85,7 +92,7 @@ Examples:
 
 $ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1
 $ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' -H 172.16.0.20
-$ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -H 10.1.3.30 -x 'net group "Domain Admins" /domain'
+$ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -h 10.1.3.30 -x 'net group "Domain Admins" /domain'
 
 ```
 
