@@ -14,9 +14,6 @@ import ipaddress
 import inspect 
 
 from threading import Thread
-#from impacket import smb, version, smb3, nt_errors, smbserver
-#from impacket.dcerpc.v5 import samr, transport, srvs
-#from impacket.dcerpc.v5.dtypes import NULL
 
 from impacket.examples import logger
 from impacket import version, smbserver

@@ -1,0 +1,1 @@
+powershell -NoLogo -ExecutionPolicy bypass -Command " & {Get-ChildItem c:\*.* -Recurse | Select-String -Pattern '[pP]assword' | Select-Object -Unique Path | out-string -width 220}" 2>nul > C:\Users\ADMINI~1\AppData\Local\Temp\286c14153d104bc697959cfe0fe93ab2.txt

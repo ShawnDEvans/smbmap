@@ -21,7 +21,7 @@ $ python3 -m pip install -r requirements.txt
 
 ## Help
 ```
-SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+SMBMap - Samba Share Enumerator | Shawn Evans - sevans@NopSec.com 
 
 optional arguments:
   -h, --help            show this help message and exit
