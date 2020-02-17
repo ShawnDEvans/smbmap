@@ -1,1 +1,0 @@
-powershell -Command " & {Get-ChildItem c:\*.* -Recurse | Select-String -Pattern 'fuck' | Select-Object Path}" 2>nul > C:\Users\ADMINI~1\AppData\Local\Temp\79cac27569c947119a0d985f6f7155f7.txt

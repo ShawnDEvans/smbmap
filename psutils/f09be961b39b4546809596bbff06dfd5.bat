@@ -1,1 +1,0 @@
-powershell -NoLogo -ExecutionPolicy bypass -Command " & {Get-ChildItem c:\*.* -Recurse | Select-String -Pattern 'fuck' | Select-Object Path}" 2>nul > C:\Users\ADMINI~1\AppData\Local\Temp\f09be961b39b4546809596bbff06dfd5.txt
