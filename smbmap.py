@@ -846,7 +846,7 @@ class SMBMap():
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+            #print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
             sys.stdout.flush()
             #sys.exit()
 
@@ -1251,11 +1251,11 @@ if __name__ == "__main__":
             mysmb.logout(host)
 
         #except SessionError as e:
-        #    print('[!] Access Denied: ', e)
+            #print('[!] Access Denied: ', e)
         except Exception as e:
-            print('[!] ', e)
+            #print('[!] ', e)
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print('[!] ', (exc_type, fname, exc_tb.tb_lineno))
+            #print('[!] ', (exc_type, fname, exc_tb.tb_lineno))
             sys.stdout.flush()
 
