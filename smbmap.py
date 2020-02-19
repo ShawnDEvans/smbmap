@@ -532,13 +532,14 @@ class SMBMap():
         try:
             self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
             self.smbconn[host].login(username, password, domain=domain)
-
+            '''
             if self.smbconn[host].isGuestSession() > 0:
                 if verbose and not self.grepable:
                     print('[+] Guest SMB session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
                     print('[+] User SMB session established on %s...' % (host))
+            '''
             return True
 
         except Exception as e:
@@ -551,8 +552,8 @@ class SMBMap():
         for host in list(self.hosts.keys()):
             success = False
             if self.is_ntlm(self.hosts[host]['passwd']):
-                if verbose:
-                    print('[+] Hash detected, using pass-the-hash to authenticate')
+                #if verbose:
+                #    print('[+] Hash detected, using pass-the-hash to authenticate')
                 if self.hosts[host]['port'] == 445:
                     success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], verbose)
                 else:
@@ -576,13 +577,15 @@ class SMBMap():
         try:
             self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
-
+            
+            '''
             if self.smbconn[host].isGuestSession() > 0:
                 if verbose and not self.grepable:
                     print('[+] Guest RPC session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
                     print('[+] User RPC session established on %s...' % (host))
+            '''
             return True
 
         except Exception as e:
@@ -595,12 +598,14 @@ class SMBMap():
             self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
             self.smbconn[host].login(username, password, domain)
 
+            '''
             if self.smbconn[host].isGuestSession() > 0:
                 if verbose and not self.grepable:
                     print('[+] Guest RPC session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
                     print('[+] User RPC session established on %s...' % (host))
+            '''
             return True
 
         except Exception as e:
@@ -613,12 +618,14 @@ class SMBMap():
             self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
             self.smbconn[host].login(username, '', domain, lmhash=lmhash, nthash=nthash)
 
+            '''
             if self.smbconn[host].isGuestSession() > 0:
                 if verbose and not self.grepable:
                     print('[+] Guest session established on %s...' % (host))
             else:
                 if verbose and not self.grepable:
                     print('[+] User session established on %s...' % (host))
+            '''
             return True
 
         except Exception as e:
@@ -634,6 +641,10 @@ class SMBMap():
             if result == 0:
                 sock.close()
                 return True
+            else:
+                if verbose:
+                    print('[!] 445 not open on {}....'.format(address))
+                return False
         except:
             print('[!] 445 not open on {}....'.format(address))
             return False
@@ -764,6 +775,7 @@ class SMBMap():
             pass
         except Exception as e:
             print('[!] Error: {}'.format(e))
+    
 
     def output_shares(self, host, lsshare, lspath, write_check=True, verbose=True, depth=255):
         shareList = [(lsshare,'')] if lsshare else self.get_shares(host)
@@ -834,7 +846,6 @@ class SMBMap():
                 print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
                 sys.stdout.flush()
                 sys.exit()
-
 
     def get_shares(self, host):
         try:
@@ -1103,6 +1114,7 @@ if __name__ == "__main__":
     sgroup.add_argument("-d", metavar="DOMAIN", dest='domain', default="WORKGROUP", help="Domain name (default WORKGROUP)")
     sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
     sgroup.add_argument("-v", dest='version', default=False, action='store_true', help="Return the OS version of the remote host")
+    sgroup.add_argument("--admin", dest='admin', default=False, action='store_true', help='Just report if the user is an admin') 
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
 
@@ -1240,12 +1252,19 @@ if __name__ == "__main__":
                 mysmb.get_version(host)
 
             if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
-                if not mysmb.grepable:
-                    print('[+] IP: %s:%s\tName: %s' % (host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50)))
-                if not mysmb.pattern and not mysmb.grepable:
+                try:
+                    if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
+                        is_admin = True
+                except:
+                        is_admin = False
+
+                if (not mysmb.grepable and not args.admin) or (not mysmb.grepable and args.admin and is_admin):
+                    print('[+] {}IP: {}:{}\tName: {}'.format('BAM: Admin!!!\t' if is_admin else '', host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50) ))
+                tmp = mysmb.get_shares(host)
+                if not mysmb.pattern and not mysmb.grepable and not args.admin and tmp is not None:
                     print('\tDisk%s\tPermissions\tComment' % (' '.ljust(50)))
                     print('\t----%s\t-----------\t-------' % (' '.ljust(50)))
-                mysmb.output_shares(host, lsshare, lspath, args.write_check, args.verbose, args.depth)
+                    mysmb.output_shares(host, lsshare, lspath, args.write_check, args.verbose, args.depth)
             
 
             mysmb.logout(host)
@@ -1253,9 +1272,8 @@ if __name__ == "__main__":
         #except SessionError as e:
             #print('[!] Access Denied: ', e)
         except Exception as e:
-            #print('[!] ', e)
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            #print('[!] ', (exc_type, fname, exc_tb.tb_lineno))
+            print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
             sys.stdout.flush()
 
