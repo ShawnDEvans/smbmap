@@ -37,6 +37,7 @@ Main arguments:
   -d DOMAIN             Domain name (default WORKGROUP)
   -P PORT               SMB port (default 445)
   -v                    Return the OS version of the remote host
+  --admin               Just report if the user is an admin
 
 Command Execution:
   Options for executing commands on the specified host
@@ -66,7 +67,7 @@ Shard drive Search:
   --depth DEPTH         Traverse a directory tree to a specific depth
 
 File Content Search:
-  Options for searching the content of files
+  Options for searching the content of files (must run as root)
 
   -F PATTERN            File content search, -F '[Pp]assword' (requires admin
                         access to execute commands, and PowerShell on victim
