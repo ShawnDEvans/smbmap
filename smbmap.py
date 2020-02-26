@@ -14,7 +14,7 @@ import ipaddress
 import inspect 
 
 from threading import Thread
-
+from threading import Semaphore
 from impacket.examples import logger
 from impacket import version, smbserver
 from impacket.smbserver import SRVSServer
@@ -42,6 +42,26 @@ DUMMY_SHARE     = 'TMP'
 PERM_DIR = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
 PSUTIL_DIR= 'psutils'
 PSUTIL_SHARE = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))  
+
+class Loader(Thread):
+    def __init__(self):
+        Thread.__init__(self)
+        self._running = True
+        self._progress = '\\|/-\\|/-'
+
+    def terminate(self):
+        self._running = False
+
+    def cleanup(self):
+        print(' '*32, end='')
+        print('\r', end='')
+
+    def run(self):
+        while self._running:
+            for char in self._progress:
+                print('[{}] Working on it...'.format(char), end='')
+                print('\r', end='')
+                time.sleep(0.05)
 
 class SimpleSMBServer(Thread):
     def __init__(self, interface_address, port):
@@ -520,6 +540,8 @@ class SMBMap():
         self.recursive = False
         self.dir_only = False
         self.list_files = False
+        self.loading = False
+        self.verbose = True
         self.smbconn = {}
         self.isLoggedIn = False
         self.pattern = None
@@ -527,8 +549,9 @@ class SMBMap():
         self.hosts = {}
         self.jobs = {}
         self.search_output_buffer = ''
+        self.loader = None 
 
-    def login(self, host, username, password, domain, verbose=True):
+    def login(self, host, username, password, domain):
         try:
             self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
             self.smbconn[host].login(username, password, domain=domain)
@@ -548,30 +571,30 @@ class SMBMap():
     def logout(self, host):
         self.smbconn[host].logoff()
 
-    def smart_login(self, verbose=True):
+    def smart_login(self):
         for host in list(self.hosts.keys()):
             success = False
             if self.is_ntlm(self.hosts[host]['passwd']):
                 #if verbose:
                 #    print('[+] Hash detected, using pass-the-hash to authenticate')
                 if self.hosts[host]['port'] == 445:
-                    success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], verbose)
+                    success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
-                    success = self.login_rpc_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], verbose)
+                    success = self.login_rpc_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
             else:
                 if self.hosts[host]['port'] == 445:
-                    success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], verbose)
+                    success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
-                    success = self.login_rpc(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], verbose)
+                    success = self.login_rpc(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
 
             if not success:
-                if verbose:
+                if self.verbose:
                     print('[!] Authentication error on %s' % (host))
                 self.smbconn.pop(host,None)
                 self.hosts.pop(host, None)
                 continue
 
-    def login_rpc_hash(self, host, username, ntlmhash, domain, verbose=True):
+    def login_rpc_hash(self, host, username, ntlmhash, domain):
         lmhash, nthash = ntlmhash.split(':')
 
         try:
@@ -589,11 +612,11 @@ class SMBMap():
             return True
 
         except Exception as e:
-            if verbose:
+            if self.verbose:
                 print('[!] RPC Authentication error occurred')
             return False
 
-    def login_rpc(self, host, username, password, domain, verbose=True):
+    def login_rpc(self, host, username, password, domain):
         try:
             self.smbconn[host] = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
             self.smbconn[host].login(username, password, domain)
@@ -612,7 +635,7 @@ class SMBMap():
             print('[!] RPC Authentication error occurred')
             return False
 
-    def login_hash(self, host, username, ntlmhash, domain, verbose=True):
+    def login_hash(self, host, username, ntlmhash, domain):
         lmhash, nthash = ntlmhash.split(':')
         try:
             self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
@@ -632,7 +655,7 @@ class SMBMap():
             print('[!] Authentication error occurred')
             return False
 
-    def find_open_ports(self, address, port, verbose=True):
+    def find_open_ports(self, address, port):
         result = 1
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -642,7 +665,7 @@ class SMBMap():
                 sock.close()
                 return True
             else:
-                if verbose:
+                if self.verbose:
                     print('[!] 445 not open on {}....'.format(address))
                 return False
         except:
@@ -677,9 +700,11 @@ class SMBMap():
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+            #print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
             sys.stdout.flush()
-            print('[!] Job creation failed on host: %s' % (host))
+            print('[!] Job creation failed on host: %s. Did you run as r00t?' % (host))
+            self.kill_loader()
+            sys.exit()
     
     def get_job_procid(self, host, share, path, job):
         try:
@@ -695,7 +720,7 @@ class SMBMap():
             sys.stdout.flush()
 
     def get_search_results(self, timeout):
-        print('[+] Grabbing search results, be patient, share drives tend to be big...')
+        print('[+] Checking on search results, be patient, drives tend to be big...')
         counter = 0
         num_jobs = len(list(self.jobs.keys()))
         start_time = time.perf_counter() 
@@ -706,7 +731,7 @@ class SMBMap():
                     result = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "2>nul (>>{}\{}.txt (call )) && (echo not locked) || (echo locked)"'.format(self.jobs[job]['tmp'], job), disp_output=False)
                     if 'not locked' ==  result.strip() and isItThere.strip() == 'ImHere':
                         dl_target = '%s%s\%s.txt' % (self.jobs[job]['share'], self.jobs[job]['tmp'][2:], job)
-                        host_dest = self.download_file(self.jobs[job]['host'], dl_target, False)
+                        host_dest = self.download_file(self.jobs[job]['host'], dl_target)
                         counter += 1
                         self.search_output_buffer += 'Host: %s \t\tPattern: %s\n' % (self.jobs[job]['host'], self.jobs[job]['pattern'])
                         if os.stat(host_dest).st_size > 0:
@@ -716,7 +741,7 @@ class SMBMap():
                         else:
                             self.search_output_buffer += 'No matching patterns found\n\n'
                         print('[+] Job %d of %d completed on %s...' % (counter, num_jobs, self.jobs[job]['host']))
-                        self.delete_file(self.jobs[job]['host'], dl_target, False)
+                        self.delete_file(self.jobs[job]['host'], dl_target)
                         os.remove('./{}/{}.bat'.format(PSUTIL_DIR, job))
                         self.jobs.pop(job, None)
                         if counter >= num_jobs:
@@ -727,10 +752,12 @@ class SMBMap():
                             for pid in self.jobs[job]['proc_id']:
                                 kill_job = 'taskkill /PID {} /F'.format(pid)
                                 success = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], kill_job, disp_output=False)
+                                os.remove('./{}/{}.bat'.format(PSUTIL_DIR, job))
                         time.sleep(10)
                     
             except Exception as e:
                 print(e)
+        self.kill_loader()
         print('[+] All jobs complete')
         print(self.search_output_buffer)
 
@@ -765,6 +792,7 @@ class SMBMap():
                             break
                     disks.append(net_disks)
                     net_disks = ''
+            self.kill_loader()
             print('[+] Host %s Local %s' % (host, local_disks.strip()))
             print('[+] Host %s Net Drive(s):' % (host))
             if len(disks) > 0:
@@ -775,14 +803,15 @@ class SMBMap():
             pass
         except Exception as e:
             print('[!] Error: {}'.format(e))
-    
 
-    def output_shares(self, host, lsshare, lspath, write_check=True, verbose=True, depth=255):
+    def output_shares(self, host, lsshare, lspath, write_check=True, depth=5):
         shareList = [(lsshare,'')] if lsshare else self.get_shares(host)
+        share_privs = ''
+        share_tree = {}
         for share in shareList:
-            share_privs = ''
-            error = 0
-            pathList = {}
+            share_name = share[0]
+            share_comment = share[1]
+            share_tree[share_name] = {}
             canWrite = False
             readonly = False
             noaccess = False
@@ -790,62 +819,136 @@ class SMBMap():
                 try:
                     root = PERM_DIR.replace('/','\\')
                     root = ntpath.normpath(root)
-                    self.create_dir(host, share[0], root)
-                    if not self.pattern and not self.grepable:
-                        print('\t{}\tREAD, WRITE\t{}'.format( share[0].ljust(50), share[1] ))
-                    if self.grepable:
-                        share_privs = '{}/READ_WRITE'.format(share[0])
+                    self.create_dir(host, share_name, root)
+                    share_tree[share_name]['privs'] = 'READ, WRITE'
                     canWrite = True
                     try:
-                        self.remove_dir(host, share[0], root)
+                        self.remove_dir(host, share_name, root)
                     except Exception as e:
-                        print('\t[!] Unable to remove test directory at \\\\%s\\%s\\%s, please remove manually' % (host, share[0], root))
+                        print('\t[!] Unable to remove test directory at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
                 except Exception as e:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                     #print(exc_type, fname, exc_tb.tb_lineno)
                     sys.stdout.flush()
-            else:
-                canWrite = False
 
             try:
-                if self.smbconn[host].listPath(share[0], self.pathify('/')) and canWrite == False:
+                if self.smbconn[host].listPath(share_name, self.pathify('/')) and canWrite == False:
                     readonly = True
+                    share_tree[share_name]['privs'] = 'READ ONLY'
             except Exception as e:
                 noaccess = True
-                share_privs = '{}/NO_ACCESS'.format(share[0])
+                share_tree[share_name]['privs'] = 'NO ACCESS'
 
-            if canWrite == False and readonly == True:
-                if not self.pattern and not self.grepable:
-                    print('\t{}\tREAD ONLY\t{}'.format(share[0].ljust(50), share[1]))
-
-                if self.grepable:
-                    share_privs = '{}/READ_ONLY'.format(share[0])
-
-            if noaccess == True and verbose and not self.pattern and not self.grepable:
-                print('\t{}\tNO ACCESS\t{}'.format(share[0].ljust(50), share[1]))
-
+            share_tree[share_name]['comment'] = share_comment
+            contents = {}
+            
             try:
                 if noaccess == False:
+                    dirList = ''
                     if lspath:
                         path = lspath
                     else:
                         path = '/'
-                    if self.list_files and not self.recursive:
+                    if self.list_files:
                         if self.pattern:
                             print('[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share[0]))
-                        dirList = self.list_path(host, share[0], path, self.pattern, share_privs, verbose)
-
-                    if self.recursive:
-                        if self.pattern:
-                            print("[+] Starting search for files matching \'{}\' on share {}.".format(self.pattern, share[0]))
-                        dirList = self.list_path_recursive(host, share[0], path, pathList, self.pattern, share_privs, verbose, depth)
+                        contents = self.list_path(host, share_name, path, depth)
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
                 sys.stdout.flush()
                 sys.exit()
+            share_tree[share_name]['contents'] = contents
+
+        if self.loading:
+            self.kill_loader()
+        self.to_string(share_tree, host)
+
+    def kill_loader(self):
+        self.loader.terminate()
+        self.loader.join()
+        self.loader.cleanup()
+        self.loading = False
+
+    def list_path(self, host, share, path, depth=5, path_list=None):
+        if path_list is None:
+            path_list = {}
+        pwd = self.pathify(path)
+        width = 16
+        try:
+            pathList = self.smbconn[host].listPath(share, pwd)
+            path_list[path] = []
+            for item in pathList:
+                filesize = item.get_filesize()
+                readonly = 'w' if item.is_readonly() > 0 else 'r'
+                date = time.ctime(float(item.get_mtime_epoch()))
+                isDir = 'd' if item.is_directory() > 0 else 'f'
+                filename = item.get_longname()
+                if isDir == 'f':
+                    if self.pattern:
+                        fileMatch = re.search(self.pattern.lower(), filename.lower())
+                        if fileMatch:
+                            dlThis = '%s%s%s' % (share, pwd.strip('*'), filename)
+                            dlThis = dlThis.replace('/','\\')
+                            print('[+] Match found! Downloading: %s' % (dlThis))
+                            self.download_file(host, dlThis)
+                if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
+                    path_list[path].append({'isDir': isDir, 'readonly': readonly, 'filesize': filesize, 'date': date, 'filename': filename})
+            if self.recursive:
+                for smbItem in path_list[path]:
+                    try:
+                        if smbItem['isDir'] == 'd' and smbItem['filename'] not in [ '.', '..']: 
+                            subPath = '%s/%s' % (path, smbItem['filename'])
+                            subPath = self.pathify(subPath)
+                            pathList  = self.smbconn[host].listPath(share, subPath)
+                            if len(pathList) > 2 and '{}/{}'.format(path, smbItem['filename']) not in path_list.keys() and subPath.count('\\')-1 <= int(depth):
+                                self.list_path(host, share, '%s/%s' % (path, smbItem['filename']), depth, path_list)
+                    except SessionError as e:
+                        #print('[!] Error with smbItem: ', e)
+                        continue
+            return path_list
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+            sys.stdout.flush()
+            return {}
+
+    def to_string(self, share_tree, host):
+        header = '\tDisk{}\tPermissions\tComment\n'.format(' '.ljust(50))
+        header += '\t----{}\t-----------\t-------'.format(' '.ljust(50))
+        heads_up = False
+        try:
+            for item in share_tree.keys():
+                if self.verbose == False and 'NO ACCESS' not in share_tree[item]['privs'] and self.grepable == False and not self.pattern:
+                    if heads_up == False:
+                        print(header)
+                        heads_up = True
+                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                elif self.verbose and self.grepable == False and not self.pattern:
+                    if heads_up == False:
+                        print(header)
+                        heads_up = True
+                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                for path in share_tree[item]['contents'].keys():
+                    if self.grepable == False and self.verbose:
+                        print('\t.\{}{}'.format(item, self.pathify(path)))
+                    for file_info in share_tree[item]['contents'][path]:
+                        isDir = file_info['isDir']
+                        readonly = file_info['readonly']
+                        filesize = file_info['filesize']
+                        date = file_info['date']
+                        filename = file_info['filename']
+                        if (self.verbose and self.grepable == False) and ((self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False)):
+                            print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(16), date, filename))
+                        elif self.grepable:
+                            if filename != '.' and filename != '..':
+                                if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
+                                    print('host:{}, privs:{}, isDir:{}, name:{}{}\{}, fileSize:{}, date:{}'.format(host, share_tree[item]['privs'].replace(',','').replace(' ', '_'), isDir, item, self.pathify(path).replace('\*',''), filename, str(filesize), date))
+        except Exception as e:
+            print('[!] Bummer: ', e)
 
     def get_shares(self, host):
         try:
@@ -861,99 +964,13 @@ class SMBMap():
             sys.stdout.flush()
             #sys.exit()
 
-    def list_path_recursive(self, host, share, pwd, pathList, pattern, privs, verbose, depth):
-        root = self.pathify(pwd)
-        width = 16
-        try:
-            if root.count('\\')-1 <= int(depth):
-                pathList[root] = self.smbconn[host].listPath(share, root)
-                if verbose and not self.grepable:
-                    print('\t.{}'.format(root.strip('*')))
-                if len(pathList[root]) > 2:
-                    for smbItem in pathList[root]:
-                        try:
-                            filename = smbItem.get_longname()
-                            isDir = 'd' if smbItem.is_directory() > 0 else 'f'
-                            filesize = smbItem.get_filesize()
-                            readonly = 'w' if smbItem.is_readonly() > 0 else 'r'
-                            date = time.ctime(float(smbItem.get_mtime_epoch()))
-                            if smbItem.is_directory() <= 0:
-                                if self.pattern:
-                                    fileMatch = re.search(pattern.lower(), filename.lower())
-                                    if fileMatch:
-                                        dlThis = '%s\\%s/%s' % (share, root.strip('*'), filename)
-                                        dlThis = dlThis.replace('/', '\\')
-                                        print('[+] Match found! Downloading: %s' % (ntpath.normpath(dlThis)))
-                                        self.download_file(host, dlThis, False)
-                            if verbose and not self.grepable:
-                                if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
-                                    print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
-                            if self.grepable:
-                                if filename != '.' and filename != '..':
-                                    if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
-                                        print('host:{}, privs:{}, isDir:{}, name:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, root.replace('\*',''), filename, str(filesize), date))
-                        except SessionError as e:
-                            print('[!]', e)
-                            continue
-                        except Exception as e:
-                            print('[!]', e)
-                            exc_type, exc_obj, exc_tb = sys.exc_info()
-                            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                            #print((exc_type, fname, exc_tb.tb_lineno))
-                            sys.stdout.flush()
-                    for smbItem in pathList[root]:
-                        try:
-                            filename = smbItem.get_longname()
-                            if smbItem.is_directory() > 0 and filename != '.' and filename != '..':
-                                subPath = '%s/%s' % (pwd, filename)
-                                subPath = self.pathify(subPath)
-                                pathList[subPath] = self.smbconn[host].listPath(share, subPath)
-                                if len(pathList[subPath]) > 2:
-                                    self.list_path_recursive(host, share, '%s/%s' % (pwd, filename), pathList, pattern, privs, verbose, depth)
-
-                        except SessionError as e:
-                            continue
-        except Exception as e:
-            pass
-
     def pathify(self, path):
+        root = ''
         root = ntpath.join(path,'*')
         root = root.replace('/','\\')
         root = root.replace('\\\\','\\')
         root = ntpath.normpath(root)
         return root
-
-    def list_path(self, host, share, path, pattern, privs, verbose=True):
-        pwd = self.pathify(path)
-        width = 16
-        try:
-            pathList = self.smbconn[host].listPath(share, pwd)
-            if verbose and not self.grepable:
-                print('\t.%s' % (path.ljust(50)))
-            for item in pathList:
-                filesize = item.get_filesize()
-                readonly = 'w' if item.is_readonly() > 0 else 'r'
-                date = time.ctime(float(item.get_mtime_epoch()))
-                isDir = 'd' if item.is_directory() > 0 else 'f'
-                filename = item.get_longname()
-                if item.is_directory() <= 0:
-                    if self.pattern:
-                        fileMatch = re.search(pattern.lower(), filename.lower())
-                        if fileMatch:
-                            dlThis = '%s\\%s/%s' % (share, pwd.strip('*'), filename)
-                            dlThis = dlThis.replace('/','\\')
-                            print('[+] Match found! Downloading: %s' % (dlThis))
-                            self.download_file(host, dlThis, False)
-                if verbose and not self.grepable:
-                    if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
-                        print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(width), date, filename))
-                if self.grepable:
-                    if filename != '.' and filename != '..':
-                        if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
-                            print('host:{}, privs:{}, isDir:{}, name:{}{}\{}, fileSize:{}, date:{}'.format(host, privs, isDir, share, pwd.replace('\*',''), filename, str(filesize), date))
-            return True
-        except Exception as e:
-            return False
 
     def create_dir(self, host, share, path):
         #path = self.pathify(path)
@@ -973,7 +990,7 @@ class SMBMap():
     def filter_results(self, pattern):
         pass
 
-    def download_file(self, host, path, verbose=True):
+    def download_file(self, host, path):
         path = path.replace('/','\\')
         path = ntpath.normpath(path)
         filename = path.split('\\')[-1]
@@ -982,13 +999,13 @@ class SMBMap():
         try:
             out = open(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))),'wb')
             dlFile = self.smbconn[host].listPath(share, path)
-            if verbose:
+            if self.verbose:
                 msg = '[+] Starting download: %s (%s bytes)' % ('%s%s' % (share, path), dlFile[0].get_filesize())
                 if self.pattern:
                     msg = '\t' + msg
                 print(msg)
             self.smbconn[host].getFile(share, path, out.write)
-            if verbose:
+            if self.verbose:
                 msg = '[+] File output to: %s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
                 if self.pattern:
                     msg = '\t'+msg
@@ -999,11 +1016,7 @@ class SMBMap():
             elif 'STATUS_INVALID_PARAMETER' in str(e):
                 print('[!] Error retrieving file, invalid path')
             elif 'STATUS_SHARING_VIOLATION' in str(e):
-                if not verbose:
-                    indent = '\t'
-                else:
-                    indent = ''
-                print('%s[!] Error retrieving file %s, sharing violation' % (indent, filename))
+                print('[!] Error retrieving file %s, sharing violation' % (filename))
                 out.close()
                 os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
         except Exception as e:
@@ -1018,6 +1031,7 @@ class SMBMap():
         else:
             hashes = None
         #domain=self.hosts[host]['domain']
+        self.kill_loader()
         if mode == 'wmi':
             executer = WMIEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command, scr_output=disp_output)
             result = executer.run(host)
@@ -1026,7 +1040,7 @@ class SMBMap():
             result = executer.run(host_name, host)
         return result
 
-    def delete_file(self, host, path, verbose=True):
+    def delete_file(self, host, path):
         path = path.replace('/','\\')
         path = ntpath.normpath(path)
         filename = path.split('\\')[-1]
@@ -1035,7 +1049,7 @@ class SMBMap():
         path = path.replace(filename, '')
         try:
             self.smbconn[host].deleteFile(share, path + filename)
-            if verbose:
+            if self.verbose:
                 print('[+] File successfully deleted: %s%s%s' % (share, path, filename))
         except SessionError as e:
             if 'STATUS_ACCESS_DENIED' in str(e):
@@ -1132,8 +1146,8 @@ if __name__ == "__main__":
     sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
-    sgroup3.add_argument("--depth", dest="depth", default=255, help="Traverse a directory tree to a specific depth")
-
+    sgroup3.add_argument("--depth", dest="depth", default=5, help="Traverse a directory tree to a specific depth. Default is 5.")
+ 
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files (must run as root)")
     sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requires admin access to execute commands, and PowerShell on victim host)")
     sgroup4.add_argument("--search-path", dest="search_path", default="C:\\Users", metavar="PATH", help="Specify drive/path to search (used with -F, default C:\\Users), ex 'D:\\HR\\'")
@@ -1165,8 +1179,11 @@ if __name__ == "__main__":
 
     if args.pattern:
         mysmb.pattern = args.pattern
-        args.verbose = False
+        mysmb.verbose = False
         args.grepable = False
+
+    if args.verbose == False:
+        mysmb.verbose = False
 
     if args.dir_only:
         mysmb.dir_only = True
@@ -1190,7 +1207,7 @@ if __name__ == "__main__":
         except:
             pass
     socket.setdefaulttimeout(3)
-   
+    
     if args.host:
         if args.host.find('/') > 0:
             try:
@@ -1202,7 +1219,7 @@ if __name__ == "__main__":
     if args.hostfile:
         for ip in args.hostfile:
             try:
-                if mysmb.find_open_ports(ip.strip(), args.port, args.verbose):
+                if mysmb.find_open_ports(ip.strip(), args.port):
                     try:
                         host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
                     except:
@@ -1212,16 +1229,25 @@ if __name__ == "__main__":
                 continue
 
     elif args.host and args.host.find('/') == -1:
-        if mysmb.find_open_ports(args.host, args.port, args.verbose):
+        if mysmb.find_open_ports(args.host, args.port):
             try:
                 host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
             except:
                 host[args.host.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
 
+    if args.admin:
+        mysmb.verbose = False
+
     mysmb.hosts = host
-    mysmb.smart_login(args.verbose)
+    mysmb.smart_login()
     counter = 0
+    
     for host in list(mysmb.hosts.keys()):
+        is_admin = False
+        mysmb.loader = Loader()
+        mysmb.loading = True
+        mysmb.loader.start()
+
         if args.file_content_search:
             counter += 1
             if args.search_path[-1] == '\\':
@@ -1255,25 +1281,30 @@ if __name__ == "__main__":
                 try:
                     if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
                         is_admin = True
+                        priv_status = 'BAM: ADMIN!!!   \t'
                 except:
-                        is_admin = False
-
+                    is_admin = False
+                    if mysmb.smbconn[host].isGuestSession() > 0:
+                        priv_status = 'Guest Session   \t'
+                    else:
+                        priv_status = ''
+                
                 if (not mysmb.grepable and not args.admin) or (not mysmb.grepable and args.admin and is_admin):
-                    print('[+] {}IP: {}:{}\tName: {}'.format('BAM: Admin!!!\t' if is_admin else '', host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50) ))
+                    print('[+] {}IP: {}:{}\tName: {}'.format(priv_status, host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50) ))
                 tmp = mysmb.get_shares(host)
-                if not mysmb.pattern and not mysmb.grepable and not args.admin and tmp is not None:
-                    print('\tDisk%s\tPermissions\tComment' % (' '.ljust(50)))
-                    print('\t----%s\t-----------\t-------' % (' '.ljust(50)))
-                    mysmb.output_shares(host, lsshare, lspath, args.write_check, args.verbose, args.depth)
-            
+                if not args.admin and tmp is not None:
+                    mysmb.output_shares(host, lsshare, lspath, args.write_check, args.depth)
 
             mysmb.logout(host)
-
+            mysmb.loading = False
+            mysmb.kill_loader()
+            mysmb.loader = None
+            
         #except SessionError as e:
             #print('[!] Access Denied: ', e)
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
+            #print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
             sys.stdout.flush()
 
