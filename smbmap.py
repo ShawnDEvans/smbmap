@@ -550,6 +550,7 @@ class SMBMap():
         self.jobs = {}
         self.search_output_buffer = ''
         self.loader = None 
+        self.exclude = []
 
     def login(self, host, username, password, domain):
         try:
@@ -708,7 +709,6 @@ class SMBMap():
             sys.stdout.flush()
             print('[!] Job creation failed on host: %s. Did you run as r00t?' % (host))
             self.kill_loader()
-            sys.exit()
     
     def get_job_procid(self, host, share, path, job):
         try:
@@ -811,58 +811,59 @@ class SMBMap():
         share_privs = ''
         share_tree = {}
         for share in shareList:
-            share_name = share[0]
-            share_comment = share[1]
-            share_tree[share_name] = {}
-            canWrite = False
-            readonly = False
-            noaccess = False
-            if write_check:
-                try:
-                    root = PERM_DIR.replace('/','\\')
-                    root = ntpath.normpath(root)
-                    self.create_dir(host, share_name, root)
-                    share_tree[share_name]['privs'] = 'READ, WRITE'
-                    canWrite = True
+            if share[0].lower() not in self.exclude:
+                share_name = share[0]
+                share_comment = share[1]
+                share_tree[share_name] = {}
+                canWrite = False
+                readonly = False
+                noaccess = False
+                if write_check:
                     try:
-                        self.remove_dir(host, share_name, root)
+                        root = PERM_DIR.replace('/','\\')
+                        root = ntpath.normpath(root)
+                        self.create_dir(host, share_name, root)
+                        share_tree[share_name]['privs'] = 'READ, WRITE'
+                        canWrite = True
+                        try:
+                            self.remove_dir(host, share_name, root)
+                        except Exception as e:
+                            print('\t[!] Unable to remove test directory at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
                     except Exception as e:
-                        print('\t[!] Unable to remove test directory at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
+                        exc_type, exc_obj, exc_tb = sys.exc_info()
+                        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                        #print(exc_type, fname, exc_tb.tb_lineno)
+                        sys.stdout.flush()
+
+                try:
+                    if self.smbconn[host].listPath(share_name, self.pathify('/')) and canWrite == False:
+                        readonly = True
+                        share_tree[share_name]['privs'] = 'READ ONLY'
+                except Exception as e:
+                    noaccess = True
+                    share_tree[share_name]['privs'] = 'NO ACCESS'
+
+                share_tree[share_name]['comment'] = share_comment
+                contents = {}
+                
+                try:
+                    if noaccess == False:
+                        dirList = ''
+                        if lspath:
+                            path = lspath
+                        else:
+                            path = '/'
+                        if self.list_files:
+                            if self.pattern:
+                                print('[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share[0]))
+                            contents = self.list_path(host, share_name, path, depth)
                 except Exception as e:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    #print(exc_type, fname, exc_tb.tb_lineno)
+                    print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
                     sys.stdout.flush()
-
-            try:
-                if self.smbconn[host].listPath(share_name, self.pathify('/')) and canWrite == False:
-                    readonly = True
-                    share_tree[share_name]['privs'] = 'READ ONLY'
-            except Exception as e:
-                noaccess = True
-                share_tree[share_name]['privs'] = 'NO ACCESS'
-
-            share_tree[share_name]['comment'] = share_comment
-            contents = {}
-            
-            try:
-                if noaccess == False:
-                    dirList = ''
-                    if lspath:
-                        path = lspath
-                    else:
-                        path = '/'
-                    if self.list_files:
-                        if self.pattern:
-                            print('[+] Starting search for files matching \'%s\' on share %s.' % (self.pattern, share[0]))
-                        contents = self.list_path(host, share_name, path, depth)
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
-                sys.stdout.flush()
-                sys.exit()
-            share_tree[share_name]['contents'] = contents
+                    sys.exit()
+                share_tree[share_name]['contents'] = contents
 
         if self.loading:
             self.kill_loader()
@@ -1147,6 +1148,7 @@ if __name__ == "__main__":
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
     sgroup3.add_argument("--depth", dest="depth", default=5, help="Traverse a directory tree to a specific depth. Default is 5.")
+    sgroup3.add_argument("--exclude", metavar="SHARE", dest="exclude", nargs="+", const=None, help="Exclude share(s) from searching and listing, ex. --exclude ADMIN$ C$'")
  
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files (must run as root)")
     sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requires admin access to execute commands, and PowerShell on victim host)")
@@ -1207,7 +1209,11 @@ if __name__ == "__main__":
         except:
             pass
     socket.setdefaulttimeout(3)
-    
+
+    if args.exclude:
+        for ex_share in args.exclude:
+            mysmb.exclude.append(ex_share.lower())
+
     if args.host:
         if args.host.find('/') > 0:
             try:
