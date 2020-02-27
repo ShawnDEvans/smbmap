@@ -671,16 +671,20 @@ class SMBMap():
         except:
             print('[!] 445 not open on {}....'.format(address))
             return False
-
-    def start_file_search(self, host, pattern, share, search_path):
+    
+    def start_smb_server(self):
         try:
             serverThread = SimpleSMBServer('0.0.0.0', 445)
             serverThread.daemon = True
             serverThread.start()
+        except:
+            print('[!] Run as r00t, or maybe something is using port 445...')
+            sys.exit()
+
+    def start_file_search(self, host, pattern, share, search_path):
+        try:
             myIPaddr = self.get_ip_address()
-            
             job_name = uuid.uuid4().hex
-            
             tmp_dir = self.exec_command(host, share, 'echo %TEMP%', disp_output=False).strip()
             if len(tmp_dir) == 0:
                 tmp_dir = 'C:\\Windows\\Temp'
@@ -757,7 +761,6 @@ class SMBMap():
                     
             except Exception as e:
                 print(e)
-        self.kill_loader()
         print('[+] All jobs complete')
         print(self.search_output_buffer)
 
@@ -792,7 +795,6 @@ class SMBMap():
                             break
                     disks.append(net_disks)
                     net_disks = ''
-            self.kill_loader()
             print('[+] Host %s Local %s' % (host, local_disks.strip()))
             print('[+] Host %s Net Drive(s):' % (host))
             if len(disks) > 0:
@@ -802,7 +804,7 @@ class SMBMap():
                 print('\tNo mapped network drives')
             pass
         except Exception as e:
-            print('[!] Error: {}'.format(e))
+            print('[!] Error on {}: {}'.format(host, e))
 
     def output_shares(self, host, lsshare, lspath, write_check=True, depth=5):
         shareList = [(lsshare,'')] if lsshare else self.get_shares(host)
@@ -906,7 +908,6 @@ class SMBMap():
                             if len(pathList) > 2 and '{}/{}'.format(path, smbItem['filename']) not in path_list.keys() and subPath.count('\\')-1 <= int(depth):
                                 self.list_path(host, share, '%s/%s' % (path, smbItem['filename']), depth, path_list)
                     except SessionError as e:
-                        #print('[!] Error with smbItem: ', e)
                         continue
             return path_list
         except Exception as e:
@@ -1031,7 +1032,6 @@ class SMBMap():
         else:
             hashes = None
         #domain=self.hosts[host]['domain']
-        self.kill_loader()
         if mode == 'wmi':
             executer = WMIEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command, scr_output=disp_output)
             result = executer.run(host)
@@ -1241,70 +1241,81 @@ if __name__ == "__main__":
     mysmb.hosts = host
     mysmb.smart_login()
     counter = 0
-    
-    for host in list(mysmb.hosts.keys()):
-        is_admin = False
-        mysmb.loader = Loader()
-        mysmb.loading = True
-        mysmb.loader.start()
+   
 
-        if args.file_content_search:
+    if args.file_content_search:
+        mysmb.start_smb_server()
+        for host in list(mysmb.hosts.keys()):
+            mysmb.loader = Loader()
+            mysmb.loading = True
+            mysmb.loader.start()
             counter += 1
             if args.search_path[-1] == '\\':
                 search_path = args.search_path[:-1]
             else:
                 search_path = args.search_path
-            print('[+] File search started on {} hosts in directory {}...this could take a while'.format(counter, search_path))
             mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
-            mysmb.get_search_results(args.search_timeout)
+            mysmb.loading = False
+            mysmb.kill_loader()
+            mysmb.loader = None
+        print('[+] File search started on {} hosts in directory {}...this could take a while'.format(counter, search_path))
+        mysmb.get_search_results(args.search_timeout)
 
-        try:
-            if args.dlPath:
-                mysmb.download_file(host, args.dlPath)
+    if not args.file_content_search:
+        for host in list(mysmb.hosts.keys()):
+            is_admin = False
+            mysmb.loader = Loader()
+            mysmb.loading = True
+            mysmb.loader.start()
+            
+            try:
+                if args.dlPath:
+                    mysmb.download_file(host, args.dlPath)
 
-            if args.upload:
-                mysmb.upload_file(host, args.upload[0], args.upload[1])
+                if args.upload:
+                    mysmb.upload_file(host, args.upload[0], args.upload[1])
 
-            if args.delFile:
-                mysmb.delete_file(host, args.delFile)
+                if args.delFile:
+                    mysmb.delete_file(host, args.delFile)
 
-            if args.list_drives:
-                mysmb.list_drives(host, args.share)
+                if args.list_drives:
+                    mysmb.list_drives(host, args.share)
 
-            if args.command:
-                mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'], args.mode)
+                if args.command:
+                    mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'], args.mode)
 
-            if args.version:
-                mysmb.get_version(host)
+                if args.version:
+                    mysmb.get_version(host)
 
-            if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
-                try:
-                    if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
-                        is_admin = True
-                        priv_status = 'BAM: ADMIN!!!   \t'
-                except:
-                    is_admin = False
-                    if mysmb.smbconn[host].isGuestSession() > 0:
-                        priv_status = 'Guest Session   \t'
-                    else:
-                        priv_status = ''
+                if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
+                    try:
+                        if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
+                            is_admin = True
+                            priv_status = 'BAM: ADMIN!!!   \t'
+                    except:
+                        is_admin = False
+                        if mysmb.smbconn[host].isGuestSession() > 0:
+                            priv_status = 'Guest session   \t'
+                        else:
+                            priv_status = ''
+                    
+                    if (not mysmb.grepable and not args.admin) or (not mysmb.grepable and args.admin and is_admin):
+                        print('[+] {}IP: {}:{}\tName: {}'.format(priv_status, host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50) ))
+                    tmp = mysmb.get_shares(host)
+                    if not args.admin and tmp is not None:
+                        mysmb.output_shares(host, lsshare, lspath, args.write_check, args.depth)
+
                 
-                if (not mysmb.grepable and not args.admin) or (not mysmb.grepable and args.admin and is_admin):
-                    print('[+] {}IP: {}:{}\tName: {}'.format(priv_status, host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50) ))
-                tmp = mysmb.get_shares(host)
-                if not args.admin and tmp is not None:
-                    mysmb.output_shares(host, lsshare, lspath, args.write_check, args.depth)
+            #except SessionError as e:
+                #print('[!] Access Denied: ', e)
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                #print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
+                sys.stdout.flush()
 
             mysmb.logout(host)
             mysmb.loading = False
             mysmb.kill_loader()
             mysmb.loader = None
-            
-        #except SessionError as e:
-            #print('[!] Access Denied: ', e)
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            #print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
-            sys.stdout.flush()
 
