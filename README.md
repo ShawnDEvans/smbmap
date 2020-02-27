@@ -64,7 +64,11 @@ Shard drive Search:
   -q                    Quiet verbose output. Only shows shares you have READ
                         or WRITE on, and suppresses file listing when
                         performing a search (-A).
-  --depth DEPTH         Traverse a directory tree to a specific depth
+  --depth DEPTH         Traverse a directory tree to a specific depth. Default
+                        is 5.
+  --exclude SHARE [SHARE ...]
+                        Exclude share(s) from searching and listing, ex.
+                        --exclude ADMIN$ C$'
 
 File Content Search:
   Options for searching the content of files (must run as root)
