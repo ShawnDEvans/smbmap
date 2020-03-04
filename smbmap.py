@@ -1266,7 +1266,7 @@ if __name__ == "__main__":
                     mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
                     counter += 1
             except:
-                continue
+                pass
             mysmb.kill_loader()
         print('[+] File search started on {} hosts in directory {}...this could take a while'.format(counter, search_path))
         mysmb.get_search_results(args.search_timeout)
@@ -1285,7 +1285,7 @@ if __name__ == "__main__":
                 if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
                     is_admin = True
             except:
-                continue
+                pass
 
             mysmb.loader = Loader()
             mysmb.loading = True
@@ -1319,7 +1319,7 @@ if __name__ == "__main__":
                 if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
                     if is_admin:
                         priv_status = 'BAM: ADMIN!!!   \t'
-                    
+                   
                     if mysmb.smbconn[host].isGuestSession() > 0:
                         priv_status = 'Guest session   \t'
                     else:
@@ -1339,7 +1339,7 @@ if __name__ == "__main__":
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                #print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
+                print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
                 sys.stdout.flush()
             
 
