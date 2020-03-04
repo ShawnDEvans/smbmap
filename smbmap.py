@@ -690,7 +690,7 @@ class SMBMap():
             if len(tmp_dir) == 0:
                 tmp_dir = 'C:\\Windows\\Temp'
             
-            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\*.* -Recurse | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name) 
+            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\*.* -Recurse -Exclude *.dll,*.exe,*.msi,*.jpg,*.gif,*.bmp | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name) 
             tmp_bat = open('./{}/{}.bat'.format(PSUTIL_DIR, job_name), 'w')
             tmp_bat.write(tmp_bat_cmd)
             tmp_bat.close()
@@ -708,7 +708,6 @@ class SMBMap():
             #print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
             sys.stdout.flush()
             print('[!] Job creation failed on host: %s. Did you run as r00t?' % (host))
-            self.kill_loader()
     
     def get_job_procid(self, host, share, path, job):
         try:
@@ -758,7 +757,6 @@ class SMBMap():
                                 success = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], kill_job, disp_output=False)
                                 os.remove('./{}/{}.bat'.format(PSUTIL_DIR, job))
                         time.sleep(10)
-                    
             except Exception as e:
                 print(e)
         print('[+] All jobs complete')
@@ -865,15 +863,13 @@ class SMBMap():
                     sys.exit()
                 share_tree[share_name]['contents'] = contents
 
-        if self.loading:
-            self.kill_loader()
         self.to_string(share_tree, host)
 
     def kill_loader(self):
+        self.loading = False
         self.loader.terminate()
         self.loader.join()
         self.loader.cleanup()
-        self.loading = False
 
     def list_path(self, host, share, path, depth=5, path_list=None):
         if path_list is None:
@@ -919,6 +915,7 @@ class SMBMap():
             return {}
 
     def to_string(self, share_tree, host):
+        self.kill_loader()
         header = '\tDisk{}\tPermissions\tComment\n'.format(' '.ljust(50))
         header += '\t----{}\t-----------\t-------'.format(' '.ljust(50))
         heads_up = False
@@ -1255,17 +1252,26 @@ if __name__ == "__main__":
             mysmb.loader = Loader()
             mysmb.loading = True
             mysmb.loader.start()
-            counter += 1
             if args.search_path[-1] == '\\':
                 search_path = args.search_path[:-1]
             else:
                 search_path = args.search_path
-            mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
-            mysmb.loading = False
+            try: 
+                if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
+                    mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
+                    counter += 1
+            except:
+                continue
             mysmb.kill_loader()
-            mysmb.loader = None
         print('[+] File search started on {} hosts in directory {}...this could take a while'.format(counter, search_path))
         mysmb.get_search_results(args.search_timeout)
+        if mysmb.loading:
+            mysmb.kill_loader()
+        for host in list(mysmb.hosts.keys()):
+            try:
+                mysmb.logout(host)
+            except: 
+                continue
 
     if not args.file_content_search:
         for host in list(mysmb.hosts.keys()):
@@ -1310,18 +1316,17 @@ if __name__ == "__main__":
                     tmp = mysmb.get_shares(host)
                     if not args.admin and tmp is not None:
                         mysmb.output_shares(host, lsshare, lspath, args.write_check, args.depth)
-
                 
-            #except SessionError as e:
-                #print('[!] Access Denied: ', e)
+                mysmb.logout(host)
+                if mysmb.loading:
+                    mysmb.kill_loader()
+                mysmb.loader = None
+            
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 #print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
                 sys.stdout.flush()
+            
 
-            mysmb.logout(host)
-            mysmb.loading = False
-            mysmb.kill_loader()
-            mysmb.loader = None
 
