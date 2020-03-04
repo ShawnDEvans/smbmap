@@ -670,7 +670,8 @@ class SMBMap():
                     print('[!] 445 not open on {}....'.format(address))
                 return False
         except:
-            print('[!] 445 not open on {}....'.format(address))
+            if self.verbose():
+                print('[!] 445 not open on {}....'.format(address))
             return False
     
     def start_smb_server(self):
@@ -1280,6 +1281,12 @@ if __name__ == "__main__":
     if not args.file_content_search:
         for host in list(mysmb.hosts.keys()):
             is_admin = False
+            try:
+                if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
+                    is_admin = True
+            except:
+                continue
+
             mysmb.loader = Loader()
             mysmb.loading = True
             mysmb.loader.start()
@@ -1295,30 +1302,28 @@ if __name__ == "__main__":
                     mysmb.delete_file(host, args.delFile)
 
                 if args.list_drives:
-                    mysmb.list_drives(host, args.share)
+                    if is_admin:
+                        mysmb.list_drives(host, args.share)
+                    else:
+                        mysmb.kill_loader()
 
                 if args.command:
-                    try:
-                        if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
-                            mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'], args.mode)
-                    except:
+                    if is_admin:
+                        mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'], args.mode)
+                    else:
                         mysmb.kill_loader()
-                        continue
 
                 if args.version:
                     mysmb.get_version(host)
 
                 if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
-                    try:
-                        if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
-                            is_admin = True
-                            priv_status = 'BAM: ADMIN!!!   \t'
-                    except:
-                        is_admin = False
-                        if mysmb.smbconn[host].isGuestSession() > 0:
-                            priv_status = 'Guest session   \t'
-                        else:
-                            priv_status = ''
+                    if is_admin:
+                        priv_status = 'BAM: ADMIN!!!   \t'
+                    
+                    if mysmb.smbconn[host].isGuestSession() > 0:
+                        priv_status = 'Guest session   \t'
+                    else:
+                        priv_status = ''
                     
                     if (not mysmb.grepable and not args.admin) or (not mysmb.grepable and args.admin and is_admin):
                         print('[+] {}IP: {}:{}\tName: {}'.format(priv_status, host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50) ))
