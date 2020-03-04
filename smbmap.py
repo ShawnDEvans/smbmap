@@ -1032,9 +1032,13 @@ class SMBMap():
         #domain=self.hosts[host]['domain']
         if mode == 'wmi':
             executer = WMIEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command, scr_output=disp_output)
+            if self.loading:
+                self.kill_loader()
             result = executer.run(host)
         else:
             executer = CMDEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
+            if self.loading:
+                self.kill_loader()
             result = executer.run(host_name, host)
         return result
 
@@ -1294,7 +1298,12 @@ if __name__ == "__main__":
                     mysmb.list_drives(host, args.share)
 
                 if args.command:
-                    mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'], args.mode)
+                    try:
+                        if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
+                            mysmb.exec_command(host, args.share, args.command, True, mysmb.hosts[host]['name'], args.mode)
+                    except:
+                        mysmb.kill_loader()
+                        continue
 
                 if args.version:
                     mysmb.get_version(host)
@@ -1317,10 +1326,10 @@ if __name__ == "__main__":
                     if not args.admin and tmp is not None:
                         mysmb.output_shares(host, lsshare, lspath, args.write_check, args.depth)
                 
-                mysmb.logout(host)
                 if mysmb.loading:
                     mysmb.kill_loader()
                 mysmb.loader = None
+                mysmb.logout(host)
             
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
