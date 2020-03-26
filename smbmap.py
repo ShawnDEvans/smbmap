@@ -196,8 +196,6 @@ class WMIEXEC:
             else:
                 self.shell.cmdloop()
         except (Exception, KeyboardInterrupt) as e:
-            #import traceback
-            #traceback.print_exc()
             logging.error(str(e))
             if smbConnection is not None:
                 smbConnection.logoff()
@@ -1110,7 +1108,7 @@ class SMBMap():
 
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
-    sys.exit()
+    os._exit(0)
 
 if __name__ == "__main__":
 
@@ -1124,7 +1122,7 @@ if __name__ == "__main__":
     sgroup = parser.add_argument_group("Main arguments")
     mex_group = sgroup.add_mutually_exclusive_group(required=True)
     mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP of host")
-    mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", type=argparse.FileType('r'), help="File containing a list of hosts")
+    mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
     sgroup.add_argument("-u", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
     sgroup.add_argument("-p", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
     sgroup.add_argument("-s", metavar="SHARE", dest='share', default='C$', help="Specify a share (default C$), ex 'C$'")
@@ -1223,8 +1221,8 @@ if __name__ == "__main__":
     if args.host:
         if args.host.find('/') > 0:
             try:
-                args.hostfile = [ str(ip) for ip in ipaddress.IPv4Network(args.host) ]
-            except:
+                args.hostfile = [ str(ip) for ip in ipaddress.ip_network(args.host, False).hosts() ]
+            except Exception as e:
                 print('[!] Invalid host...')
                 sys.exit(1)
 
@@ -1237,7 +1235,6 @@ if __name__ == "__main__":
                     except:
                         host[ip.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
             except Exception as e:
-                print('[!]', e)
                 continue
 
     elif args.host and args.host.find('/') == -1:
@@ -1339,7 +1336,7 @@ if __name__ == "__main__":
                     mysmb.kill_loader()
                 mysmb.loader = None
                 mysmb.logout(host)
-            
+           
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
