@@ -660,7 +660,7 @@ class SMBMap():
         result = 1
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
+            sock.settimeout(.25)
             result = sock.connect_ex((address,port))
             if result == 0:
                 sock.close()
@@ -1110,7 +1110,7 @@ class SMBMap():
 
 def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
-    sys.exit(1)
+    sys.exit()
 
 if __name__ == "__main__":
 
@@ -1175,6 +1175,10 @@ if __name__ == "__main__":
     host = dict()
     mysmb = SMBMap()
 
+    mysmb.loader = Loader()
+    mysmb.loading = True
+    mysmb.loader.start()
+    
     lsshare = False
     lspath = False
 
@@ -1254,9 +1258,6 @@ if __name__ == "__main__":
     if args.file_content_search:
         mysmb.start_smb_server()
         for host in list(mysmb.hosts.keys()):
-            mysmb.loader = Loader()
-            mysmb.loading = True
-            mysmb.loader.start()
             if args.search_path[-1] == '\\':
                 search_path = args.search_path[:-1]
             else:
@@ -1277,6 +1278,9 @@ if __name__ == "__main__":
                 mysmb.logout(host)
             except: 
                 continue
+
+    if mysmb.loading:
+        mysmb.kill_loader()
 
     if not args.file_content_search:
         for host in list(mysmb.hosts.keys()):
