@@ -658,7 +658,7 @@ class SMBMap():
         result = 1
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(.4445)
+            sock.settimeout(.45)
             result = sock.connect_ex((address,port))
             if result == 0:
                 sock.close()
