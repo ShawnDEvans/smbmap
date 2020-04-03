@@ -14,7 +14,7 @@ import ipaddress
 import inspect 
 
 from threading import Thread
-from threading import Semaphore
+from multiprocessing import Pool
 from impacket.examples import logger
 from impacket import version, smbserver
 from impacket.smbserver import SRVSServer
@@ -42,6 +42,7 @@ DUMMY_SHARE     = 'TMP'
 PERM_DIR = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
 PSUTIL_DIR= 'psutils'
 PSUTIL_SHARE = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))  
+VERBOSE = False
 
 class Loader(Thread):
     def __init__(self):
@@ -654,24 +655,6 @@ class SMBMap():
             print('[!] Authentication error occurred')
             return False
 
-    def find_open_ports(self, address, port):
-        result = 1
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(.45)
-            result = sock.connect_ex((address,port))
-            if result == 0:
-                sock.close()
-                return True
-            else:
-                if self.verbose:
-                    print('[!] 445 not open on {}....'.format(address))
-                return False
-        except:
-            if self.verbose():
-                print('[!] 445 not open on {}....'.format(address))
-            return False
-    
     def start_smb_server(self):
         try:
             serverThread = SimpleSMBServer('0.0.0.0', 445)
@@ -1110,6 +1093,21 @@ def signal_handler(signal, frame):
     print('You pressed Ctrl+C!')
     os._exit(0)
 
+def find_open_ports(address):
+    result = 1
+    address = address.strip()
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        result = sock.connect_ex((address, 445))
+        if result == 0:
+            sock.close()
+            return address
+        else:
+            return False
+    except Exception as e:
+        return False
+
 if __name__ == "__main__":
 
     example = 'Examples:\n\n'
@@ -1226,19 +1224,23 @@ if __name__ == "__main__":
                 print('[!] Invalid host...')
                 sys.exit(1)
 
+    if args.hostfile: 
+        print('[*]', 'Checking for open ports on {} hosts.'.format(len(args.hostfile)))
+        porty_time = Pool(40)
+        args.hostfile = porty_time.map(find_open_ports, args.hostfile)
+        print('[*]','Detected {} hosts serving SMB'.format(sum(im_open is not False for im_open in args.hostfile)))
+
     if args.hostfile:
         for ip in args.hostfile:
             try:
-                if mysmb.find_open_ports(ip.strip(), args.port):
-                    try:
-                        host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
-                    except:
-                        host[ip.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+                try:
+                    host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
+                except:
+                    host[ip.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
             except Exception as e:
                 continue
-
     elif args.host and args.host.find('/') == -1:
-        if mysmb.find_open_ports(args.host, args.port):
+        if find_open_ports(args.host.strip()):
             try:
                 host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
             except:
@@ -1251,7 +1253,6 @@ if __name__ == "__main__":
     mysmb.smart_login()
     counter = 0
    
-
     if args.file_content_search:
         mysmb.start_smb_server()
         for host in list(mysmb.hosts.keys()):
