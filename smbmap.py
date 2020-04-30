@@ -13,6 +13,7 @@ import argparse
 import ipaddress
 import inspect 
 import csv
+import getpass
 
 from threading import Thread
 from multiprocessing import Pool
@@ -1133,10 +1134,12 @@ if __name__ == "__main__":
 
     sgroup = parser.add_argument_group("Main arguments")
     mex_group = sgroup.add_mutually_exclusive_group(required=True)
+    pass_group = sgroup.add_mutually_exclusive_group()
     mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP of host")
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
     sgroup.add_argument("-u", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
-    sgroup.add_argument("-p", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
+    pass_group.add_argument("-p", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
+    pass_group.add_argument("--prompt", action='store_true', default=False, help="Prompt for a password")
     sgroup.add_argument("-s", metavar="SHARE", dest='share', default='C$', help="Specify a share (default C$), ex 'C$'")
     sgroup.add_argument("-d", metavar="DOMAIN", dest='domain', default="WORKGROUP", help="Domain name (default WORKGROUP)")
     sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
@@ -1150,7 +1153,7 @@ if __name__ == "__main__":
 
     sgroup3 = parser.add_argument_group("Shard drive Search", "Options for searching/enumerating the share of the specified host(s)")
     mex_group2 = sgroup3.add_mutually_exclusive_group()
-    mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host")
+    mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host, requires ADMIN rights.")
     mex_group2.add_argument("-R", metavar="PATH", dest="recursive_dir_list", nargs="?", const='', help="Recursively list dirs, and files (no share\path lists ALL shares), ex. 'C$\\Finance'")
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     mex_group3 = sgroup3.add_mutually_exclusive_group()
@@ -1186,6 +1189,9 @@ if __name__ == "__main__":
     host = dict()
     mysmb = SMBMap()
 
+    if args.prompt:
+        args.passwd = getpass.getpass()
+    
     mysmb.loader = Loader()
     mysmb.loading = True
     mysmb.loader.start()
@@ -1253,6 +1259,7 @@ if __name__ == "__main__":
         porty_time = Pool(40)
         args.hostfile = porty_time.map(find_open_ports, args.hostfile)
         print('[*]','Detected {} hosts serving SMB'.format(sum(im_open is not False for im_open in args.hostfile)))
+
 
     if args.hostfile:
         for ip in args.hostfile:
