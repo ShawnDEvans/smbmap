@@ -1158,7 +1158,7 @@ if __name__ == "__main__":
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
-    mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly, used with -r or -R (otherwise it outputs nothing), ex -g grep_out.txt")
+    mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, used with -r or -R (otherwise it outputs nothing), ex -g grep_out.txt")
     mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, used with -r or -R (otherwise it outputs nothing), ex --csv shares.csv")
     sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
@@ -1166,7 +1166,7 @@ if __name__ == "__main__":
     sgroup3.add_argument("--depth", dest="depth", default=5, help="Traverse a directory tree to a specific depth. Default is 5.")
     sgroup3.add_argument("--exclude", metavar="SHARE", dest="exclude", nargs="+", const=None, help="Exclude share(s) from searching and listing, ex. --exclude ADMIN$ C$'")
  
-    sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files (must run as root)")
+    sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files (must run as root), kind of experimental")
     sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requires admin access to execute commands, and PowerShell on victim host)")
     sgroup4.add_argument("--search-path", dest="search_path", default="C:\\Users", metavar="PATH", help="Specify drive/path to search (used with -F, default C:\\Users), ex 'D:\\HR\\'")
     sgroup4.add_argument('--search-timeout', dest='search_timeout', default='300', metavar='TIMEOUT', help='Specifcy a timeout (in seconds) before the file search job gets killed. Default is 300 seconds.')
