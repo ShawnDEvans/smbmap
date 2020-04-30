@@ -12,6 +12,7 @@ import configparser
 import argparse
 import ipaddress
 import inspect 
+import csv
 
 from threading import Thread
 from multiprocessing import Pool
@@ -545,6 +546,9 @@ class SMBMap():
         self.isLoggedIn = False
         self.pattern = None
         self.grepable = False
+        self.outfile = None
+        self.csv = False
+        self.csv_writer = None
         self.hosts = {}
         self.jobs = {}
         self.search_output_buffer = ''
@@ -575,8 +579,6 @@ class SMBMap():
         for host in list(self.hosts.keys()):
             success = False
             if self.is_ntlm(self.hosts[host]['passwd']):
-                #if verbose:
-                #    print('[+] Hash detected, using pass-the-hash to authenticate')
                 if self.hosts[host]['port'] == 445:
                     success = self.login_hash(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'])
                 else:
@@ -672,7 +674,7 @@ class SMBMap():
             if len(tmp_dir) == 0:
                 tmp_dir = 'C:\\Windows\\Temp'
             
-            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\*.* -Recurse -Exclude *.dll,*.exe,*.msi,*.jpg,*.gif,*.bmp | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name) 
+            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\*.* -Recurse -Exclude *.dll,*.exe,*.msi,*.jpg,*.gif,*.bmp,*.png,*.mp3,*.wav | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name) 
             tmp_bat = open('./{}/{}.bat'.format(PSUTIL_DIR, job_name), 'w')
             tmp_bat.write(tmp_bat_cmd)
             tmp_bat.close()
@@ -903,18 +905,18 @@ class SMBMap():
         heads_up = False
         try:
             for item in share_tree.keys():
-                if self.verbose == False and 'NO ACCESS' not in share_tree[item]['privs'] and self.grepable == False and not self.pattern:
+                if self.verbose == False and 'NO ACCESS' not in share_tree[item]['privs'] and self.grepable == False and not self.pattern and self.csv == False:
                     if heads_up == False:
                         print(header)
                         heads_up = True
                     print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
-                elif self.verbose and self.grepable == False and not self.pattern:
+                elif self.verbose and self.grepable == False and self.csv == False and  not self.pattern:
                     if heads_up == False:
                         print(header)
                         heads_up = True
                     print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
                 for path in share_tree[item]['contents'].keys():
-                    if self.grepable == False and self.verbose:
+                    if self.grepable == False and self.csv == False and self.verbose:
                         print('\t.\{}{}'.format(item, self.pathify(path)))
                     for file_info in share_tree[item]['contents'][path]:
                         isDir = file_info['isDir']
@@ -922,12 +924,24 @@ class SMBMap():
                         filesize = file_info['filesize']
                         date = file_info['date']
                         filename = file_info['filename']
-                        if (self.verbose and self.grepable == False) and ((self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False)):
+                        if (self.verbose and self.grepable == False and self.csv == False) and ((self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False)):
                             print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(16), date, filename))
                         elif self.grepable:
                             if filename != '.' and filename != '..':
                                 if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
-                                    print('host:{}, privs:{}, isDir:{}, name:{}{}\{}, fileSize:{}, date:{}'.format(host, share_tree[item]['privs'].replace(',','').replace(' ', '_'), isDir, item, self.pathify(path).replace('\*',''), filename, str(filesize), date))
+                                    self.outfile.write('host:{}, share:{}, privs:{}, isDir:{}, path:{}{}\{}, fileSize:{}, date:{}\n'.format(host, item, share_tree[item]['privs'].replace(',','').replace(' ', '_'), isDir, item, self.pathify(path).replace('\*',''), filename, str(filesize), date))
+                        elif self.csv:
+                            if filename != '.' and filename != '..':
+                                if (self.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and self.dir_only == False):
+                                    row = {}
+                                    row['Host'] = host
+                                    row['Share'] = item
+                                    row['Privs'] = share_tree[item]['privs'].replace(',','').replace(' ', '_')
+                                    row['isDir'] = isDir
+                                    row['Path'] = '{}{}\{}'.format(item, self.pathify(path).replace('\*',''), filename)
+                                    row['fileSize'] = str(filesize)
+                                    row['Date'] = date
+                                    self.writer.writerow(row) 
         except Exception as e:
             print('[!] Bummer: ', e)
 
@@ -1098,7 +1112,7 @@ def find_open_ports(address):
     address = address.strip()
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(2)
+        sock.settimeout(3)
         result = sock.connect_ex((address, 445))
         if result == 0:
             sock.close()
@@ -1141,7 +1155,8 @@ if __name__ == "__main__":
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
-    mex_group3.add_argument("-g", dest="grepable", default=False, action="store_true", help="Make the output grep friendly, used with -r or -R (otherwise it outputs nothing)")
+    mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly, used with -r or -R (otherwise it outputs nothing), ex -g grep_out.txt")
+    mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, used with -r or -R (otherwise it outputs nothing), ex --csv shares.csv")
     sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
@@ -1180,11 +1195,20 @@ if __name__ == "__main__":
 
     if args.grepable:
         mysmb.grepable = args.grepable
+        mysmb.outfile = open(args.grepable, 'w') 
 
+    if args.csv:
+        mysmb.csv = args.csv
+        mysmb.outfile = open(args.csv, 'w')
+        csv_fields = ['Host', 'Share', 'Privs', 'isDir', 'Path', 'fileSize', 'Date']
+        mysmb.writer = csv.DictWriter(mysmb.outfile, csv_fields)
+        mysmb.writer.writeheader()
+    
     if args.pattern:
         mysmb.pattern = args.pattern
         mysmb.verbose = False
         args.grepable = False
+        args.csv = False
 
     if args.verbose == False:
         mysmb.verbose = False
@@ -1225,7 +1249,7 @@ if __name__ == "__main__":
                 sys.exit(1)
 
     if args.hostfile: 
-        print('[*]', 'Checking for open ports on {} hosts.'.format(len(args.hostfile)))
+        print('[*]', 'Checking for open ports...')
         porty_time = Pool(40)
         args.hostfile = porty_time.map(find_open_ports, args.hostfile)
         print('[*]','Detected {} hosts serving SMB'.format(sum(im_open is not False for im_open in args.hostfile)))
@@ -1319,16 +1343,16 @@ if __name__ == "__main__":
                     mysmb.get_version(host)
 
                 if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
-                    if is_admin:
-                        priv_status = 'BAM: ADMIN!!!   \t'
                    
                     if mysmb.smbconn[host].isGuestSession() > 0:
-                        priv_status = 'Guest session   \t'
+                        priv_status = 'Status: Guest session   \t'
+                    elif is_admin:
+                        priv_status = 'Status: ADMIN!!!   \t'
                     else:
-                        priv_status = ''
+                        priv_status = 'Status: Authenticated'
                     
-                    if (not mysmb.grepable and not args.admin) or (not mysmb.grepable and args.admin and is_admin):
-                        print('[+] {}IP: {}:{}\tName: {}'.format(priv_status, host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(50) ))
+                    if (not mysmb.grepable and not args.admin and not mysmb.csv) or (not mysmb.grepable and not mysmb.csv and args.admin and is_admin):
+                        print('[+] IP: {}:{}\tName: {}\t{}'.format(host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(20), priv_status ))
                     tmp = mysmb.get_shares(host)
                     if not args.admin and tmp is not None:
                         mysmb.output_shares(host, lsshare, lspath, args.write_check, args.depth)
@@ -1336,13 +1360,20 @@ if __name__ == "__main__":
                 if mysmb.loading:
                     mysmb.kill_loader()
                 mysmb.loader = None
-                mysmb.logout(host)
-           
+                try:
+                    mysmb.logout(host)
+                except:
+                    pass
+             
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
                 sys.stdout.flush()
+        
+        if args.grepable or args.csv:
+            print('[*]','Results output to: {}'.format(mysmb.outfile.name))
+            mysmb.outfile.close()
             
 
 
