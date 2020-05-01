@@ -1359,6 +1359,7 @@ if __name__ == "__main__":
                         priv_status = 'Status: Authenticated'
                     
                     if (not mysmb.grepable and not args.admin and not mysmb.csv) or (not mysmb.grepable and not mysmb.csv and args.admin and is_admin):
+                        print(' '*100)
                         print('[+] IP: {}:{}\tName: {}\t{}'.format(host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(20), priv_status ))
                     tmp = mysmb.get_shares(host)
                     if not args.admin and tmp is not None:
