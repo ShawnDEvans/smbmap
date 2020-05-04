@@ -1138,7 +1138,7 @@ if __name__ == "__main__":
     mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP of host")
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
     sgroup.add_argument("-u", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
-    pass_group.add_argument("-p", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
+    pass_group.add_argument("-p", metavar="PASSWORD", dest='passwd', default=' ', help="Password or NTLM hash")
     pass_group.add_argument("--prompt", action='store_true', default=False, help="Prompt for a password")
     sgroup.add_argument("-s", metavar="SHARE", dest='share', default='C$', help="Specify a share (default C$), ex 'C$'")
     sgroup.add_argument("-d", metavar="DOMAIN", dest='domain', default="WORKGROUP", help="Domain name (default WORKGROUP)")
@@ -1275,7 +1275,7 @@ if __name__ == "__main__":
             try:
                 host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain}
             except:
-                host[args.host.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
+                host[args.host.strip()] = { 'name' : 'unknown', 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain }
 
     if args.admin:
         mysmb.verbose = False
