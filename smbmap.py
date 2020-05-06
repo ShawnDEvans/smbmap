@@ -550,6 +550,7 @@ class SMBMap():
         self.outfile = None
         self.csv = False
         self.csv_writer = None
+        self.unc = False
         self.hosts = {}
         self.jobs = {}
         self.search_output_buffer = ''
@@ -906,16 +907,19 @@ class SMBMap():
         heads_up = False
         try:
             for item in share_tree.keys():
+                sharename = item
+                if self.unc == True:
+                    sharename = '\\\\{}\\{}'.format(host, item)
                 if self.verbose == False and 'NO ACCESS' not in share_tree[item]['privs'] and self.grepable == False and not self.pattern and self.csv == False:
                     if heads_up == False:
                         print(header)
                         heads_up = True
-                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
-                elif self.verbose and self.grepable == False and self.csv == False and  not self.pattern:
+                    print('\t{}\t{}\t{}'.format(sharename.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                elif self.verbose and self.grepable == False and self.csv == False and not self.pattern:
                     if heads_up == False:
                         print(header)
                         heads_up = True
-                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                    print('\t{}\t{}\t{}'.format(sharename.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
                 for path in share_tree[item]['contents'].keys():
                     if self.grepable == False and self.csv == False and self.verbose:
                         print('\t.\{}{}'.format(item, self.pathify(path)))
@@ -1145,6 +1149,7 @@ if __name__ == "__main__":
     sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
     sgroup.add_argument("-v", dest='version', default=False, action='store_true', help="Return the OS version of the remote host")
     sgroup.add_argument("--admin", dest='admin', default=False, action='store_true', help='Just report if the user is an admin') 
+    sgroup.add_argument("--unc", dest='unc', default=False, action='store_true', help='Print share name as UNC path') 
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
 
@@ -1279,6 +1284,9 @@ if __name__ == "__main__":
 
     if args.admin:
         mysmb.verbose = False
+
+    if args.unc:
+        mysmb.unc = True
 
     mysmb.hosts = host
     mysmb.smart_login()
