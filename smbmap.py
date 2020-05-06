@@ -571,6 +571,7 @@ class SMBMap():
             return True
 
         except Exception as e:
+            print('SMB Login Error:', e)
             return False
 
     def logout(self, host):
