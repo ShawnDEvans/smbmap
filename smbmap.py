@@ -859,6 +859,8 @@ class SMBMap():
         heads_up = False
         try:
             for item in share_tree.keys():
+                if self.grepable:
+                    self.outfile.write('host:{}, share:{}, privs:{}, comment:{}\n'.format(host, item, share_tree[item]['privs'].replace(',','').replace(' ', '_'), share_tree[item]['comment']))
                 if self.verbose == False and 'NO ACCESS' not in share_tree[item]['privs'] and self.grepable == False and not self.pattern and self.csv == False:
                     if heads_up == False:
                         print(header)
@@ -1111,7 +1113,7 @@ if __name__ == "__main__":
     mex_group2.add_argument("-r", metavar="PATH", dest="dir_list", nargs="?", const='', help="List contents of directory, default is to list root of all shares, ex. -r 'C$\Documents and Settings\Administrator\Documents'")
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
-    mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, used with -r or -R (otherwise it outputs nothing), ex -g grep_out.txt")
+    mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, use with -r or -R to include dir and file information, ex -g grep_out.txt")
     mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, used with -r or -R (otherwise it outputs nothing), ex --csv shares.csv")
     sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
