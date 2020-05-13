@@ -863,12 +863,12 @@ class SMBMap():
                     if heads_up == False:
                         print(header)
                         heads_up = True
-                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'].replace('\r','').replace('\n', '') ) )
                 elif self.verbose and self.grepable == False and self.csv == False and  not self.pattern:
                     if heads_up == False:
                         print(header)
                         heads_up = True
-                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'].replace('\r','').replace('\n', '') ) )
                 for path in share_tree[item]['contents'].keys():
                     if self.grepable == False and self.csv == False and self.verbose:
                         print('\t.\{}{}'.format(item, self.pathify(path)))
