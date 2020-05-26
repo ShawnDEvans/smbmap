@@ -46,6 +46,19 @@ PSUTIL_DIR= 'psutils'
 PSUTIL_SHARE = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))  
 VERBOSE = False
 
+banner = r"""
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+ -----------------------------------------------------------------------------
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com   
+                     https://github.com/ShawnDEvans/smbmap
+"""
+
 class Loader(Thread):
     def __init__(self):
         Thread.__init__(self)
@@ -1083,13 +1096,14 @@ if __name__ == "__main__":
     example += '$ python smbmap.py -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -H 172.16.0.20\n'
     example += '$ python smbmap.py -u \'apadmin\' -p \'asdf1234!\' -d ACME -Hh 10.1.3.30 -x \'net group "Domain Admins" /domain\'\n'
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com", epilog=example)
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=banner, epilog=example)
 
     sgroup = parser.add_argument_group("Main arguments")
     mex_group = sgroup.add_mutually_exclusive_group(required=True)
     pass_group = sgroup.add_mutually_exclusive_group()
     mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP of host")
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
+
     sgroup.add_argument("-u", metavar="USERNAME", dest='user', default=' ', help="Username, if omitted null session assumed")
     pass_group.add_argument("-p", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
     pass_group.add_argument("--prompt", action='store_true', default=False, help="Prompt for a password")
@@ -1098,6 +1112,7 @@ if __name__ == "__main__":
     sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
     sgroup.add_argument("-v", dest='version', default=False, action='store_true', help="Return the OS version of the remote host")
     sgroup.add_argument("--admin", dest='admin', default=False, action='store_true', help='Just report if the user is an admin') 
+    sgroup.add_argument("--no-banner", dest='nobanner', default=False, action='store_true', help='Removes the banner from the top of the output') 
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
 
@@ -1141,6 +1156,9 @@ if __name__ == "__main__":
 
     host = dict()
     mysmb = SMBMap()
+    
+    if not args.nobanner:
+        print(banner)
 
     if args.prompt:
         args.passwd = getpass.getpass()
@@ -1340,5 +1358,4 @@ if __name__ == "__main__":
             print('[*]','Results output to: {}'.format(mysmb.outfile.name))
             mysmb.outfile.close()
             
-
 
