@@ -23,7 +23,16 @@ $ python3 -m pip install -r requirements.txt
 
 ## Help
 ```
-SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+ -----------------------------------------------------------------------------
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com   
+                     https://github.com/ShawnDEvans/smbmap
 
 optional arguments:
   -h, --help            show this help message and exit
