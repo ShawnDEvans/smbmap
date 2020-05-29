@@ -569,10 +569,14 @@ class SMBMap():
         self.loader = None 
         self.exclude = []
 
-    def login(self, host, username, password, domain, lmhash, nthash):
+    def login(self, host, username, password, domain, lmhash, nthash, port):
         try:
-            self.smbconn[host] = SMBConnection(host, host, sess_port=445, timeout=4)
-            self.smbconn[host].login(username, password, domain, lmhash, nthash)
+            if port == 445:
+                smbconn = SMBConnection(host, host, sess_port=445, timeout=4)
+                smbconn.login(username, password, domain, lmhash, nthash)
+            else:
+                smbconn = SMBConnection('*SMBSERVER', host, sess_port=139, timeout=4)
+                smbconn.login(username, password, domain, lmhash, nthash)
             '''
             if self.smbconn[host].isGuestSession() > 0:
                 if verbose and not self.grepable:
@@ -581,9 +585,11 @@ class SMBMap():
                 if verbose and not self.grepable:
                     print('[+] User SMB session established on %s...' % (host))
             '''
-            return True
+            return smbconn
 
         except Exception as e:
+            if self.verbose:
+                print('[!] Authentication error on %s' % (host))
             return False
 
     def logout(self, host):
@@ -594,7 +600,7 @@ class SMBMap():
             success = False
             
             if self.hosts[host]['port'] == 445:
-                success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], self.hosts[host]['lmhash'], self.hosts[host]['nthash'])
+                success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], self.hosts[host]['lmhash'], self.hosts[host]['nthash'], self.host[host]['port'])
             else:
                 success = self.login_rpc(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], self.hosts[host]['lmhash'], self.hosts[host]['nthash'])
 
@@ -1089,6 +1095,22 @@ def find_open_ports(address):
     except Exception as e:
         return False
 
+def login(host):
+    try:
+        if host['port'] == 445:
+            smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=4)
+        else:
+            smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=4)
+        
+        smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
+        
+        return smbconn
+
+    except Exception as e:
+        if VERBOSE:
+            print('[!] Authentication error on {}'.format(host['ip']))
+        return False
+
 if __name__ == "__main__":
 
     example = 'Examples:\n\n'
@@ -1154,7 +1176,7 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    host = dict()
+    hosts = [] 
     mysmb = SMBMap()
     
     if not args.nobanner:
@@ -1189,6 +1211,8 @@ if __name__ == "__main__":
 
     if args.verbose == False:
         mysmb.verbose = False
+    else:
+        VERBOSE = True
 
     if args.dir_only:
         mysmb.dir_only = True
@@ -1241,22 +1265,25 @@ if __name__ == "__main__":
         for ip in args.hostfile:
             if ip:
                 try:
-                    host[ip.strip()] = { 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash }
+                    hosts.append({ 'ip' : ip.strip(), 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash })
                 except:
-                    host[ip.strip()] = { 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash }
+                    hosts.append({ 'ip' : ip.strip(), 'name' : 'unknown', 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash })
                     continue
     elif args.host and args.host.find('/') == -1:
         if find_open_ports(args.host.strip()):
             try:
-                host[args.host.strip()] = { 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash }
+                hosts.append({ 'ip' : args.host.strip(), 'name' : socket.getnameinfo((args.host.strip(), args.port),0)[0], 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash})
             except:
-                host[args.host.strip()] = { 'name' : 'unknown', 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash }
+                hosts.append({ 'ip' : args.host.strip(), 'name' : 'unknown', 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash })
 
     if args.admin:
         mysmb.verbose = False
-
-    mysmb.hosts = host
-    mysmb.smart_login()
+    
+    connections = []
+    login_worker = Pool(40)
+    connections = login_worker.map(login, hosts)
+    mysmb.hosts = { value['ip']:value for value in hosts }
+    mysmb.smbconn = { conn.getRemoteHost():conn for conn in connections if conn is not False}
     counter = 0
    
     if args.file_content_search:
@@ -1287,7 +1314,7 @@ if __name__ == "__main__":
         mysmb.kill_loader()
 
     if not args.file_content_search:
-        for host in list(mysmb.hosts.keys()):
+        for host in list(mysmb.smbconn.keys()):
             is_admin = False
             try:
                 if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
