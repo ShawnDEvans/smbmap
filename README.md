@@ -48,6 +48,7 @@ Main arguments:
   -P PORT               SMB port (default 445)
   -v                    Return the OS version of the remote host
   --admin               Just report if the user is an admin
+  --no-banner           Removes the banner from the top of the output
 
 Command Execution:
   Options for executing commands on the specified host
