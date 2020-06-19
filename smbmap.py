@@ -32,6 +32,8 @@ import cmd
 import os
 import re
 
+from termcolor import colored
+
 # A lot of this code was taken from Impacket's own examples
 # https://github.com/SecureAuthCorp/impacket/ 
 # Seriously, the most amazing Python library ever!!
@@ -778,7 +780,7 @@ class SMBMap():
                         root = PERM_DIR.replace('/','\\')
                         root = ntpath.normpath(root)
                         self.create_dir(host, share_name, root)
-                        share_tree[share_name]['privs'] = 'READ, WRITE'
+                        share_tree[share_name]['privs'] = colored('READ, WRITE', 'green')
                         canWrite = True
                         try:
                             self.remove_dir(host, share_name, root)
@@ -793,10 +795,10 @@ class SMBMap():
                 try:
                     if self.smbconn[host].listPath(share_name, self.pathify('/')) and canWrite == False:
                         readonly = True
-                        share_tree[share_name]['privs'] = 'READ ONLY'
+                        share_tree[share_name]['privs'] = colored('READ ONLY', 'yellow')
                 except Exception as e:
                     noaccess = True
-                    share_tree[share_name]['privs'] = 'NO ACCESS'
+                    share_tree[share_name]['privs'] = colored('NO ACCESS', 'red')
 
                 share_tree[share_name]['comment'] = share_comment
                 contents = {}
@@ -1354,11 +1356,11 @@ if __name__ == "__main__":
                 if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
                    
                     if mysmb.smbconn[host].isGuestSession() > 0:
-                        priv_status = 'Status: Guest session   \t'
+                        priv_status = 'Status: ' + colored('Guest session   \t', 'yellow')
                     elif is_admin:
-                        priv_status = 'Status: ADMIN!!!   \t'
+                        priv_status = 'Status: ' + colored('ADMIN!!!', 'green', attrs=['bold','underline']) + '   \t'
                     else:
-                        priv_status = 'Status: Authenticated'
+                        priv_status = 'Status: ' + colored ('Authenticated', 'green')
                     
                     if (not mysmb.grepable and not args.admin and not mysmb.csv) or (not mysmb.grepable and not mysmb.csv and args.admin and is_admin):
                         print(' '*100)
