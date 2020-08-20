@@ -848,7 +848,7 @@ class SMBMap():
                     if self.pattern:
                         fileMatch = re.search(self.pattern.lower(), filename.lower())
                         if fileMatch:
-                            dlThis = '%s%s%s' % (share, pwd.strip('*'), filename)
+                            dlThis = '%s\%s%s' % (share, pwd.strip('*'), filename)
                             dlThis = dlThis.replace('/','\\')
                             print('[+] Match found! Downloading: %s' % (dlThis))
                             self.download_file(host, dlThis)
@@ -892,7 +892,7 @@ class SMBMap():
                     print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
                 for path in share_tree[item]['contents'].keys():
                     if self.grepable == False and self.csv == False and self.verbose:
-                        print('\t.\{}{}'.format(item, self.pathify(path)))
+                        print('\t.\{}\{}'.format(item, self.pathify(path)))
                     for file_info in share_tree[item]['contents'][path]:
                         isDir = file_info['isDir']
                         readonly = file_info['readonly']
