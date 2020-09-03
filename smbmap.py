@@ -930,8 +930,9 @@ class SMBMap():
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            #print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
             sys.stdout.flush()
+            self.kill_loader()
             #sys.exit()
 
     def pathify(self, path):
@@ -996,22 +997,25 @@ class SMBMap():
         return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
 
     def exec_command(self, host, share, command, disp_output=True, host_name=None, mode='wmi'):
-        if self.is_ntlm(self.hosts[host]['passwd']):
-            hashes = self.hosts[host]['passwd']
-        else:
-            hashes = None
-        #domain=self.hosts[host]['domain']
-        if mode == 'wmi':
-            executer = WMIEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command, scr_output=disp_output)
+        try:
+            if self.is_ntlm(self.hosts[host]['passwd']):
+                hashes = self.hosts[host]['passwd']
+            else:
+                hashes = None
             if self.loading:
                 self.kill_loader()
-            result = executer.run(host)
-        else:
-            executer = CMDEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
-            if self.loading:
-                self.kill_loader()
-            result = executer.run(host_name, host)
-        return result
+            if mode == 'wmi':
+                executer = WMIEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command, scr_output=disp_output)
+                result = executer.run(host)
+            else:
+                executer = CMDEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
+                result = executer.run(host_name, host)
+            return result
+        except:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+            sys.stdout.flush()
+            return none
 
     def delete_file(self, host, path):
         path = path.replace('/','\\')
@@ -1100,9 +1104,9 @@ def find_open_ports(address):
 def login(host):
     try:
         if host['port'] == 445:
-            smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=4)
+            smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=10)
         else:
-            smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=4)
+            smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=10)
         
         smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
         
@@ -1259,7 +1263,6 @@ if __name__ == "__main__":
 
     if mysmb.is_ntlm(args.passwd):
         lmhash, nthash = args.passwd.split(':')
-        args.passwd = ''
     else:
         lmhash, nthash = ('', '')
 
