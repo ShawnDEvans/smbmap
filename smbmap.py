@@ -780,7 +780,7 @@ class SMBMap():
                         root = PERM_DIR.replace('/','\\')
                         root = ntpath.normpath(root)
                         self.create_dir(host, share_name, root)
-                        share_tree[share_name]['privs'] = colored('READ, WRITE', 'green')
+                        share_tree[share_name]['privs'] = 'READ, WRITE'
                         canWrite = True
                         try:
                             self.remove_dir(host, share_name, root)
@@ -795,10 +795,10 @@ class SMBMap():
                 try:
                     if self.smbconn[host].listPath(share_name, self.pathify('/')) and canWrite == False:
                         readonly = True
-                        share_tree[share_name]['privs'] = colored('READ ONLY', 'yellow')
+                        share_tree[share_name]['privs'] = 'READ ONLY'
                 except Exception as e:
                     noaccess = True
-                    share_tree[share_name]['privs'] = colored('NO ACCESS', 'red')
+                    share_tree[share_name]['privs'] = 'NO ACCESS'
 
                 share_tree[share_name]['comment'] = share_comment
                 contents = {}
@@ -880,16 +880,29 @@ class SMBMap():
         heads_up = False
         try:
             for item in share_tree.keys():
+                if share_tree[item]['privs'] == 'READ, WRITE':
+                    share_name_privs = colored('READ, WRITE', 'green')
+                if share_tree[item]['privs'] == 'READ ONLY':
+                    share_name_privs = colored('READ ONLY', 'yellow')
+                if share_tree[item]['privs'] == 'NO ACCESS':
+                    share_name_privs = colored('NO ACCESS', 'red')
+                if self.csv and not self.list_files:
+                    row = {}
+                    row['Host'] = host
+                    row['Share'] = item
+                    row['Privs'] = share_tree[item]['privs'].replace(',','').replace(' ', '_')
+                    row['Comment'] = share_tree[item]['comment'].replace('\r','').replace('\n', '')
+                    self.writer.writerow(row) 
                 if self.verbose == False and 'NO ACCESS' not in share_tree[item]['privs'] and self.grepable == False and not self.pattern and self.csv == False:
                     if heads_up == False:
                         print(header)
                         heads_up = True
-                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_name_privs, share_tree[item]['comment'] ) )
                 elif self.verbose and self.grepable == False and self.csv == False and  not self.pattern:
                     if heads_up == False:
                         print(header)
                         heads_up = True
-                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_tree[item]['privs'], share_tree[item]['comment'] ) )
+                    print('\t{}\t{}\t{}'.format(item.ljust(50), share_name_privs, share_tree[item]['comment'] ) )
                 for path in share_tree[item]['contents'].keys():
                     if self.grepable == False and self.csv == False and self.verbose:
                         print('\t.\{}\{}'.format(item, self.pathify(path)))
@@ -1155,7 +1168,7 @@ if __name__ == "__main__":
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -R or -r), not case sensitive, ex '(web|global).(asax|config)'")
     mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, used with -r or -R (otherwise it outputs nothing), ex -g grep_out.txt")
-    mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, used with -r or -R (otherwise it outputs nothing), ex --csv shares.csv")
+    mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, used with -r or -R outputs file listings, ex --csv shares.csv")
     sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
@@ -1205,7 +1218,10 @@ if __name__ == "__main__":
     if args.csv:
         mysmb.csv = args.csv
         mysmb.outfile = open(args.csv, 'w')
-        csv_fields = ['Host', 'Share', 'Privs', 'isDir', 'Path', 'fileSize', 'Date']
+        if args.recursive_dir_list != None or args.dir_list != None:
+            csv_fields = ['Host', 'Share', 'Privs', 'isDir', 'Path', 'fileSize', 'Date']
+        else:
+            csv_fields = ['Host', 'Share', 'Privs', 'Comment']
         mysmb.writer = csv.DictWriter(mysmb.outfile, csv_fields)
         mysmb.writer.writeheader()
     
