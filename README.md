@@ -49,6 +49,8 @@ Main arguments:
   -v                    Return the OS version of the remote host
   --admin               Just report if the user is an admin
   --no-banner           Removes the banner from the top of the output
+  --no-color            Removes color from output
+  --no-update           Removes "Working on it..." update message from output
 
 Command Execution:
   Options for executing commands on the specified host
