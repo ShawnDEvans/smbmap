@@ -26,6 +26,7 @@ from impacket.dcerpc.v5 import transport, scmr
 from impacket.dcerpc.v5.dcomrt import DCOMConnection
 from impacket.dcerpc.v5.dcom import wmi
 from impacket.dcerpc.v5.dtypes import NULL
+from impacket.smb3structs import FILE_WRITE_DATA
 
 import ntpath
 import cmd
@@ -803,6 +804,22 @@ class SMBMap():
                         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                         #print(exc_type, fname, exc_tb.tb_lineno)
                         sys.stdout.flush()
+                    if not canWrite:
+                        try:
+                            root = PERM_DIR.replace('/','\\')
+                            root = ntpath.normpath(root)
+                            self.create_file(host, share_name, root)
+                            share_tree[share_name]['privs'] = colored('READ, WRITE', 'green')
+                            canWrite = True
+                            try:
+                                self.remove_file(host, share_name, root)
+                            except Exception as e:
+                                print('\t[!] Unable to remove test file at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
+                        except Exception as e:
+                            exc_type, exc_obj, exc_tb = sys.exc_info()
+                            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                            #print(exc_type, fname, exc_tb.tb_lineno)
+                            sys.stdout.flush()
 
                 try:
                     if self.smbconn[host].listPath(share_name, self.pathify('/')) and canWrite == False:
@@ -975,6 +992,14 @@ class SMBMap():
     def remove_dir(self, host, share, path):
         #path = self.pathify(path)
         self.smbconn[host].deleteDirectory(share, path)
+
+    def create_file(self, host, share, path):
+        tid = self.smbconn[host].connectTree(share)
+        self.smbconn[host].createFile(tid, path, desiredAccess=FILE_WRITE_DATA)
+
+    def remove_file(self, host, share, path):
+        #path = self.pathify(path)
+        self.smbconn[host].deleteFile(share, path)
 
     def valid_ip(self, address):
         try:
