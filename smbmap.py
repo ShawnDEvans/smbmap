@@ -32,7 +32,7 @@ import cmd
 import os
 import re
 
-from termcolor import colored
+from termcolor import colored as termcolored
 
 # A lot of this code was taken from Impacket's own examples
 # https://github.com/SecureAuthCorp/impacket/ 
@@ -47,6 +47,8 @@ PERM_DIR = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
 PSUTIL_DIR= 'psutils'
 PSUTIL_SHARE = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))  
 VERBOSE = False
+USE_TERMCOLOR=True
+SEND_UPDATE_MSG=True
 
 banner = r"""
     ________  ___      ___  _______   ___      ___       __         _______
@@ -60,6 +62,14 @@ banner = r"""
      SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com   
                      https://github.com/ShawnDEvans/smbmap
 """
+
+
+def colored(msg, *args, **kwargs):
+    global USE_TERMCOLOR
+    if USE_TERMCOLOR:
+        return termcolored(msg, *args, **kwargs)
+    return msg
+
 
 class Loader(Thread):
     def __init__(self):
@@ -75,11 +85,13 @@ class Loader(Thread):
         print('\r', end='')
 
     def run(self):
+        global SEND_UPDATE_MSG
         while self._running:
             for char in self._progress:
-                print('[{}] Working on it...'.format(char), end='')
-                print('\r', end='')
-                time.sleep(0.05)
+                if SEND_UPDATE_MSG:
+                    print('[{}] Working on it...'.format(char), end='')
+                    print('\r', end='')
+                    time.sleep(0.05)
 
 class SimpleSMBServer(Thread):
     def __init__(self, interface_address, port):
@@ -1154,6 +1166,8 @@ if __name__ == "__main__":
     sgroup.add_argument("-v", dest='version', default=False, action='store_true', help="Return the OS version of the remote host")
     sgroup.add_argument("--admin", dest='admin', default=False, action='store_true', help='Just report if the user is an admin') 
     sgroup.add_argument("--no-banner", dest='nobanner', default=False, action='store_true', help='Removes the banner from the top of the output') 
+    sgroup.add_argument("--no-color", dest='nocolor', default=False, action='store_true', help='Removes the color from output') 
+    sgroup.add_argument("--no-update", dest='noupdate', default=False, action='store_true', help='Removes the "Working on it" message') 
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
 
@@ -1200,6 +1214,11 @@ if __name__ == "__main__":
     
     if not args.nobanner:
         print(banner)
+
+    if args.nocolor:
+        USE_TERMCOLOR=False
+    if args.noupdate:
+        SEND_UPDATE_MSG=False
 
     if args.prompt:
         args.passwd = getpass.getpass()
