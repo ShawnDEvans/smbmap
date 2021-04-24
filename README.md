@@ -74,8 +74,7 @@ Shard drive Search:
   -g FILE               Output to a file in a grep friendly format, used with
                         -r or -R (otherwise it outputs nothing), ex -g
                         grep_out.txt
-  --csv FILE            Output to a CSV file, used with -r or -R (otherwise it
-                        outputs nothing), ex --csv shares.csv
+  --csv FILE            Output to a CSV file, ex --csv shares.csv
   --dir-only            List only directories, ommit files.
   --no-write-check      Skip check to see if drive grants WRITE access.
   -q                    Quiet verbose output. Only shows shares you have READ
