@@ -1016,35 +1016,41 @@ class SMBMap():
         path = ntpath.normpath(path)
         filename = path.split('\\')[-1]
         share = path.split('\\')[0]
-        path = path.replace(share, '')
+        path = path.replace(share, '', 1)
+        output_path = ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_'))))
         try:
-            out = open(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))),'wb')
             dlFile = self.smbconn[host].listPath(share, path)
             if self.verbose:
                 msg = '[+] Starting download: %s (%s bytes)' % ('%s%s' % (share, path), dlFile[0].get_filesize())
                 if self.pattern:
                     msg = '\t' + msg
                 print(msg)
-            self.smbconn[host].getFile(share, path, out.write)
+
+            with open(output_path,'wb') as out:
+                self.smbconn[host].getFile(share, path, out.write)
+            
             if self.verbose:
-                msg = '[+] File output to: %s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
+                msg = '[+] File output to: %s/%s' % (os.getcwd(), output_path)
                 if self.pattern:
                     msg = '\t'+msg
                 print(msg)
         except SessionError as e:
-            if 'STATUS_ACCESS_DENIED' in str(e):
+            error_message = str(e)
+            if 'STATUS_ACCESS_DENIED' in error_message:
                 print('[!] Error retrieving file, access denied')
-            elif 'STATUS_INVALID_PARAMETER' in str(e):
+            elif 'STATUS_INVALID_PARAMETER' in error_message:
                 print('[!] Error retrieving file, invalid path')
-            elif 'STATUS_SHARING_VIOLATION' in str(e):
+            elif 'STATUS_SHARING_VIOLATION' in error_message:
                 print('[!] Error retrieving file %s, sharing violation' % (filename))
-                out.close()
-                os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
+            elif 'STATUS_NO_SUCH_FILE' in error_message:
+                print('[!] Error retrieving file %s, file not found on network share' % filename)
+            else:
+                print('[!] Error retrieving file %s, error unknown' % filename)
+                print(str(e))
         except Exception as e:
-            print('[!] Error retrieving file, unknown error')
-            os.remove(filename)
-        out.close()
-        return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
+            print('[!] Error retrieving file %s, unknown error' % filename)
+            print(str(e))
+        return '%s/%s' % (os.getcwd(), output_path)
 
     def exec_command(self, host, share, command, disp_output=True, host_name=None, mode='wmi'):
         try:
