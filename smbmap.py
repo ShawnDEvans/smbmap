@@ -1046,7 +1046,7 @@ class SMBMap():
                 print('[!] Error retrieving file %s, file not found on network share' % filename)
             else:
                 print('[!] Error retrieving file %s, error unknown' % filename)
-                print(str(e))
+                print(error_message)
         except Exception as e:
             print('[!] Error retrieving file %s, unknown error' % filename)
             print(str(e))
@@ -1349,10 +1349,16 @@ if __name__ == "__main__":
 
     if args.admin:
         mysmb.verbose = False
-    
+
     connections = []
-    login_worker = Pool(40)
-    connections = login_worker.map(login, hosts)
+
+    if len(hosts) > 0:
+        login_worker = Pool(40)
+        connections = login_worker.map(login, hosts)
+    else:
+        print("[!] No hosts have ports 139 or 445 open")
+        os._exit(1)
+
     mysmb.hosts = { value['ip']:value for value in hosts }
     mysmb.smbconn = { conn.getRemoteHost():conn for conn in connections if conn is not False}
     counter = 0
