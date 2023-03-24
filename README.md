@@ -10,7 +10,7 @@ There's a known oddity in the SMBServer component used for the file content sear
 ```
 SMBMap has been updated to Python3!
 
-$ python3 -m pip install -r requirements.txt
+$ pip3 install smbmap
 ```
 
 ## Features:
@@ -31,7 +31,7 @@ $ python3 -m pip install -r requirements.txt
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
  -----------------------------------------------------------------------------
-     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com   
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
                      https://github.com/ShawnDEvans/smbmap
 
 optional arguments:

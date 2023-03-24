@@ -1,5 +1,0 @@
-https://github.com/CoreSecurity/impacket/archive/impacket_0_9_21.zip
-pyasn1
-pycrypto
-configparser
-termcolor
