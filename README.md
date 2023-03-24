@@ -6,11 +6,21 @@ Some of the features have not been thoroughly tested, so changes will be forth c
 
 There's a known oddity in the SMBServer component used for the file content search feature. For some reason it throws an exception in the threading library. It still works, but the error is annoying none the less.
 
-## Install Requirements
-```
-SMBMap has been updated to Python3!
+> **Note**
+> SMBMap has been updated to Python3!
 
-$ pip3 install smbmap
+## Installation
+
+```bash
+$ sudo pip3 install smbmap
+$ smbmap
+smbmap
+usage: smbmap [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | --prompt] [-s SHARE] [-d DOMAIN]
+              [-P PORT] [-v] [--admin] [--no-banner] [--no-color] [--no-update] [-x COMMAND] [--mode CMDMODE]
+              [-L | -R [PATH] | -r [PATH]] [-A PATTERN | -g FILE | --csv FILE] [--dir-only] [--no-write-check]
+              [-q] [--depth DEPTH] [--exclude SHARE [SHARE ...]] [-F PATTERN] [--search-path PATH]
+              [--search-timeout TIMEOUT] [--download PATH] [--upload SRC DST] [--delete PATH TO FILE] [--skip]
+...
 ```
 
 ## Features:
