@@ -11,7 +11,7 @@ import logging
 import configparser
 import argparse
 import ipaddress
-import inspect 
+import inspect
 import csv
 import getpass
 
@@ -36,7 +36,7 @@ import re
 from termcolor import colored as termcolored
 
 # A lot of this code was taken from Impacket's own examples
-# https://github.com/SecureAuthCorp/impacket/ 
+# https://github.com/SecureAuthCorp/impacket/
 # Seriously, the most amazing Python library ever!!
 # Many thanks to that dev team
 
@@ -46,7 +46,7 @@ SMBSERVER_DIR   = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
 DUMMY_SHARE     = 'TMP'
 PERM_DIR = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
 PSUTIL_DIR= 'psutils'
-PSUTIL_SHARE = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))  
+PSUTIL_SHARE = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
 VERBOSE = False
 USE_TERMCOLOR=True
 SEND_UPDATE_MSG=True
@@ -60,7 +60,7 @@ banner = r"""
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
  -----------------------------------------------------------------------------
-     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com   
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
                      https://github.com/ShawnDEvans/smbmap
 """
 
@@ -125,7 +125,7 @@ class SMBServer(Thread):
         smbConfig.set('global','server_name','nopsec')
         smbConfig.set('global','server_os','UNIX')
         smbConfig.set('global','server_domain','WORKGROUP')
-        smbConfig.set('global','log_file', SMBSERVER_DIR + '/smb.log') 
+        smbConfig.set('global','log_file', SMBSERVER_DIR + '/smb.log')
         smbConfig.set('global','credentials_file','')
 
         # Let's add a dummy share
@@ -243,7 +243,7 @@ class RemoteShellWMI(cmd.Cmd):
     def __init__(self, share, win32Process, smbConnection, disp_output=True):
         cmd.Cmd.__init__(self)
         self.__share = share
-        self.__output = '\\' + OUTPUT_FILENAME 
+        self.__output = '\\' + OUTPUT_FILENAME
         self.__outputBuffer = ''
         self.__shell = 'cmd.exe /Q /c '
         self.__win32Process = win32Process
@@ -268,7 +268,7 @@ class RemoteShellWMI(cmd.Cmd):
  lcd {path}                 - changes the current local directory to {path}
  exit                       - terminates the server process (and this session)
  put {src_file, dst_path}   - uploads a local file to the dst_path (dst_path = default current directory)
- get {file}                 - downloads pathname to the current local dir 
+ get {file}                 - downloads pathname to the current local dir
  ! {cmd}                    - executes a local shell cmd
 """)
 
@@ -284,7 +284,7 @@ class RemoteShellWMI(cmd.Cmd):
     def do_get(self, src_path):
         try:
             newPath = ntpath.normpath(ntpath.join(self.__pwd, src_path))
-            drive, tail = ntpath.splitdrive(newPath) 
+            drive, tail = ntpath.splitdrive(newPath)
             filename = ntpath.basename(tail)
             fh = open(filename,'wb')
             logging.info("Downloading %s\\%s" % (drive, tail))
@@ -374,12 +374,12 @@ class RemoteShellWMI(cmd.Cmd):
                     time.sleep(1)
                     pass
                 else:
-                    pass 
+                    pass
         self.__transferClient.deleteFile(self.__share, self.__output)
         return self.__output
 
     def execute_remote(self, data):
-        command = self.__shell + data 
+        command = self.__shell + data
         if self.__noOutput is False:
             command += ' 1> ' + '\\\\127.0.0.1\\%s' % self.__share + self.__output  + ' 2>&1'
         self.__win32Process.Create(command, self.__pwd, None)
@@ -581,7 +581,7 @@ class SMBMap():
         self.hosts = {}
         self.jobs = {}
         self.search_output_buffer = ''
-        self.loader = None 
+        self.loader = None
         self.exclude = []
 
     def login(self, host, username, password, domain, lmhash, nthash, port):
@@ -613,7 +613,7 @@ class SMBMap():
     def smart_login(self):
         for host in list(self.hosts.keys()):
             success = False
-            
+
             if self.hosts[host]['port'] == 445:
                 success = self.login(host, self.hosts[host]['user'], self.hosts[host]['passwd'], self.hosts[host]['domain'], self.hosts[host]['lmhash'], self.hosts[host]['nthash'], self.host[host]['port'])
             else:
@@ -661,8 +661,8 @@ class SMBMap():
             tmp_dir = self.exec_command(host, share, 'echo %TEMP%', disp_output=False).strip()
             if len(tmp_dir) == 0:
                 tmp_dir = 'C:\\Windows\\Temp'
-            
-            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\*.* -Recurse -Exclude *.dll,*.exe,*.msi,*.jpg,*.gif,*.bmp,*.png,*.mp3,*.wav | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name) 
+
+            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\*.* -Recurse -Exclude *.dll,*.exe,*.msi,*.jpg,*.gif,*.bmp,*.png,*.mp3,*.wav | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name)
             tmp_bat = open('./{}/{}.bat'.format(PSUTIL_DIR, job_name), 'w')
             tmp_bat.write(tmp_bat_cmd)
             tmp_bat.close()
@@ -680,7 +680,7 @@ class SMBMap():
             #print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
             sys.stdout.flush()
             print('[!] Job creation failed on host: %s. Did you run as r00t?' % (host))
-    
+
     def get_job_procid(self, host, share, path, job):
         try:
             myIPaddr = self.get_ip_address()
@@ -698,7 +698,7 @@ class SMBMap():
         print('[+] Checking on search results, be patient, drives tend to be big...')
         counter = 0
         num_jobs = len(list(self.jobs.keys()))
-        start_time = time.perf_counter() 
+        start_time = time.perf_counter()
         while len(list(self.jobs.keys())) > 0:
             try:
                 for job in list(self.jobs.keys()):
@@ -831,7 +831,7 @@ class SMBMap():
 
                 share_tree[share_name]['comment'] = share_comment
                 contents = {}
-                
+
                 try:
                     if noaccess == False:
                         dirList = ''
@@ -886,7 +886,7 @@ class SMBMap():
             if self.recursive:
                 for smbItem in path_list[path]:
                     try:
-                        if smbItem['isDir'] == 'd' and smbItem['filename'] not in [ '.', '..']: 
+                        if smbItem['isDir'] == 'd' and smbItem['filename'] not in [ '.', '..']:
                             subPath = '%s/%s' % (path, smbItem['filename'])
                             subPath = self.pathify(subPath)
                             pathList  = self.smbconn[host].listPath(share, subPath)
@@ -921,7 +921,7 @@ class SMBMap():
                     row['Share'] = item
                     row['Privs'] = share_tree[item]['privs'].replace(',','').replace(' ', '_')
                     row['Comment'] = share_tree[item]['comment'].replace('\r','').replace('\n', '')
-                    self.writer.writerow(row) 
+                    self.writer.writerow(row)
                 if self.verbose == False and 'NO ACCESS' not in share_tree[item]['privs'] and self.grepable == False and not self.pattern and self.csv == False:
                     if heads_up == False:
                         print(header)
@@ -958,7 +958,7 @@ class SMBMap():
                                     row['Path'] = '{}{}\{}'.format(item, self.pathify(path).replace('\*',''), filename)
                                     row['fileSize'] = str(filesize)
                                     row['Date'] = date
-                                    self.writer.writerow(row) 
+                                    self.writer.writerow(row)
         except Exception as e:
             print('[!] Bummer: ', e)
 
@@ -1087,7 +1087,7 @@ class SMBMap():
                 print('[!] Error retrieving file, sharing violation')
             elif 'STATUS_FILE_IS_A_DIRECTORY' in str(e):
                 self.smbconn[host].deleteDirectory(share, path)
-                #self.remove_dir(host, share, path) 
+                #self.remove_dir(host, share, path)
             else:
                 print('[!] Error deleting file %s%s%s, unknown error' % (share, path, filename))
                 print('[!]', e)
@@ -1157,9 +1157,9 @@ def login(host):
             smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=10)
         else:
             smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=10)
-        
+
         smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
-        
+
         return smbconn
 
     except Exception as e:
@@ -1167,8 +1167,8 @@ def login(host):
             print('[!] Authentication error on {}'.format(host['ip']))
         return False
 
-if __name__ == "__main__":
 
+def main():
     example = 'Examples:\n\n'
     example += '$ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1\n'
     example += '$ python smbmap.py -u jsmith -p \'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d\' -H 172.16.0.20\n'
@@ -1189,10 +1189,10 @@ if __name__ == "__main__":
     sgroup.add_argument("-d", metavar="DOMAIN", dest='domain', default="WORKGROUP", help="Domain name (default WORKGROUP)")
     sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
     sgroup.add_argument("-v", dest='version', default=False, action='store_true', help="Return the OS version of the remote host")
-    sgroup.add_argument("--admin", dest='admin', default=False, action='store_true', help='Just report if the user is an admin') 
-    sgroup.add_argument("--no-banner", dest='nobanner', default=False, action='store_true', help='Removes the banner from the top of the output') 
-    sgroup.add_argument("--no-color", dest='nocolor', default=False, action='store_true', help='Removes the color from output') 
-    sgroup.add_argument("--no-update", dest='noupdate', default=False, action='store_true', help='Removes the "Working on it" message') 
+    sgroup.add_argument("--admin", dest='admin', default=False, action='store_true', help='Just report if the user is an admin')
+    sgroup.add_argument("--no-banner", dest='nobanner', default=False, action='store_true', help='Removes the banner from the top of the output')
+    sgroup.add_argument("--no-color", dest='nocolor', default=False, action='store_true', help='Removes the color from output')
+    sgroup.add_argument("--no-update", dest='noupdate', default=False, action='store_true', help='Removes the "Working on it" message')
 
     sgroup2 = parser.add_argument_group("Command Execution", "Options for executing commands on the specified host")
 
@@ -1213,7 +1213,7 @@ if __name__ == "__main__":
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
     sgroup3.add_argument("--depth", dest="depth", default=5, help="Traverse a directory tree to a specific depth. Default is 5.")
     sgroup3.add_argument("--exclude", metavar="SHARE", dest="exclude", nargs="+", const=None, help="Exclude share(s) from searching and listing, ex. --exclude ADMIN$ C$'")
- 
+
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files (must run as root), kind of experimental")
     sgroup4.add_argument("-F", dest="file_content_search", metavar="PATTERN", help="File content search, -F '[Pp]assword' (requires admin access to execute commands, and PowerShell on victim host)")
     sgroup4.add_argument("--search-path", dest="search_path", default="C:\\Users", metavar="PATH", help="Specify drive/path to search (used with -F, default C:\\Users), ex 'D:\\HR\\'")
@@ -1234,9 +1234,9 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    hosts = [] 
+    hosts = []
     mysmb = SMBMap()
-    
+
     if not args.nobanner:
         print(banner)
 
@@ -1247,17 +1247,17 @@ if __name__ == "__main__":
 
     if args.prompt:
         args.passwd = getpass.getpass()
-    
+
     mysmb.loader = Loader()
     mysmb.loading = True
     mysmb.loader.start()
-    
+
     lsshare = False
     lspath = False
 
     if args.grepable:
         mysmb.grepable = args.grepable
-        mysmb.outfile = open(args.grepable, 'w') 
+        mysmb.outfile = open(args.grepable, 'w')
 
     if args.csv:
         mysmb.csv = args.csv
@@ -1268,7 +1268,7 @@ if __name__ == "__main__":
             csv_fields = ['Host', 'Share', 'Privs', 'Comment']
         mysmb.writer = csv.DictWriter(mysmb.outfile, csv_fields)
         mysmb.writer.writeheader()
-    
+
     if args.pattern:
         mysmb.pattern = args.pattern
         mysmb.verbose = False
@@ -1315,7 +1315,7 @@ if __name__ == "__main__":
                 print('[!] Invalid host...')
                 sys.exit(1)
 
-    if args.hostfile: 
+    if args.hostfile:
         print('[*]', 'Checking for open ports...')
         porty_time = Pool(40)
         args.hostfile = porty_time.map(find_open_ports, args.hostfile)
@@ -1343,14 +1343,14 @@ if __name__ == "__main__":
 
     if args.admin:
         mysmb.verbose = False
-    
+
     connections = []
     login_worker = Pool(40)
     connections = login_worker.map(login, hosts)
     mysmb.hosts = { value['ip']:value for value in hosts }
     mysmb.smbconn = { conn.getRemoteHost():conn for conn in connections if conn is not False}
     counter = 0
-   
+
     if args.file_content_search:
         mysmb.start_smb_server()
         for host in list(mysmb.hosts.keys()):
@@ -1358,7 +1358,7 @@ if __name__ == "__main__":
                 search_path = args.search_path[:-1]
             else:
                 search_path = args.search_path
-            try: 
+            try:
                 if len(mysmb.smbconn[host].listPath('ADMIN$', mysmb.pathify('/'))) > 0:
                     mysmb.start_file_search(host, args.file_content_search, args.share, search_path)
                     counter += 1
@@ -1372,7 +1372,7 @@ if __name__ == "__main__":
         for host in list(mysmb.hosts.keys()):
             try:
                 mysmb.logout(host)
-            except: 
+            except:
                 continue
 
     if mysmb.loading:
@@ -1390,7 +1390,7 @@ if __name__ == "__main__":
             mysmb.loader = Loader()
             mysmb.loading = True
             mysmb.loader.start()
-            
+
             try:
                 if args.dlPath:
                     mysmb.download_file(host, args.dlPath)
@@ -1417,21 +1417,21 @@ if __name__ == "__main__":
                     mysmb.get_version(host)
 
                 if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.file_content_search and not args.version:
-                   
+
                     if mysmb.smbconn[host].isGuestSession() > 0:
                         priv_status = 'Status: ' + colored('Guest session   \t', 'yellow')
                     elif is_admin:
                         priv_status = 'Status: ' + colored('ADMIN!!!', 'green', attrs=['bold','underline']) + '   \t'
                     else:
                         priv_status = 'Status: ' + colored ('Authenticated', 'green')
-                    
+
                     if (not mysmb.grepable and not args.admin and not mysmb.csv) or (not mysmb.grepable and not mysmb.csv and args.admin and is_admin):
                         print(' '*100)
                         print('[+] IP: {}:{}\tName: {}\t{}'.format(host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(20), priv_status ))
                     tmp = mysmb.get_shares(host)
                     if not args.admin and tmp is not None:
                         mysmb.output_shares(host, lsshare, lspath, args.write_check, args.depth)
-                
+
                 if mysmb.loading:
                     mysmb.kill_loader()
                 mysmb.loader = None
@@ -1439,15 +1439,17 @@ if __name__ == "__main__":
                     mysmb.logout(host)
                 except:
                     pass
-             
+
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
                 sys.stdout.flush()
-        
+
         if args.grepable or args.csv:
             print('[*]','Results output to: {}'.format(mysmb.outfile.name))
             mysmb.outfile.close()
-            
 
+
+if __name__ == "__main__":
+    main()
