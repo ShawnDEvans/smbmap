@@ -1084,7 +1084,7 @@ def download_file(smbconn, path):
     path = ntpath.normpath(path)
     filename = path.split('\\')[-1]
     share = path.split('\\')[0]
-    path = path.replace(share, '')
+    path = path.replace(share, '', 1)
     host = socket.gethostbyname(smbconn.getRemoteHost())
 
     try:
