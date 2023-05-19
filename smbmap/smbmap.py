@@ -1091,7 +1091,7 @@ def download_file(smbconn, path):
     try:
         dlFile = smbconn.listPath(share, path)
         print('[+] Starting download: {} ({} bytes)'.format('{}{}'.format(share, path), dlFile[0].get_filesize()))
-        with open(output_path) as out:
+        with open(output_path, 'wb') as out:
             smbconn.getFile(share, path, out.write)
         print('[+] File output to: %s/%s' % (os.getcwd(), output_path))
 
