@@ -981,12 +981,12 @@ def get_shares( share_args ):
                         if canWrite == False:
                             try:
                                 root = PERM_DIR.replace('/','\\')
-                                root = ntpath.normpath(root)
+                                root = '{}.txt'.format(ntpath.normpath(root))
                                 create_file(share_args['smbconn'], share_name, root)
                                 share_tree[host][share_name]['privs'] = 'READ, WRITE'
                                 canWrite = True
                                 try:
-                                    remove_file(share_args['smbconn'], share_name, root)
+                                    remove_file(share_args['smbconn'],share_name, root)
                                 except Exception as e:
                                     print('\t[!] Unable to remove test file at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
                             except Exception as e:
@@ -1086,13 +1086,14 @@ def download_file(smbconn, path):
     share = path.split('\\')[0]
     path = path.replace(share, '', 1)
     host = socket.gethostbyname(smbconn.getRemoteHost())
+    output_path = ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_'))))
 
     try:
-        out = open(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))),'wb')
         dlFile = smbconn.listPath(share, path)
         print('[+] Starting download: {} ({} bytes)'.format('{}{}'.format(share, path), dlFile[0].get_filesize()))
-        smbconn.getFile(share, path, out.write)
-        print('[+] File output to: %s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_'))))))
+        with open(output_path) as out:
+            smbconn.getFile(share, path, out.write)
+        print('[+] File output to: %s/%s' % (os.getcwd(), output_path))
 
     except SessionError as e:
         if 'STATUS_ACCESS_DENIED' in str(e):
@@ -1107,24 +1108,20 @@ def download_file(smbconn, path):
         print('[!] Error retrieving file, unknown error')
         print(e)
         os.remove(filename)
-    out.close()
-    return '%s/%s' % (os.getcwd(), ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
-
-def create_dir(smbconn, share, path):
-    #path = self.pathify(path)
-    smbconn.createDirectory(share, path)
+    return '%s/%s' % (os.getcwd(),output_path)
 
 def create_file(smbconn, share, path):
     tid = smbconn.connectTree(share)
-    smbconn.createFile(tid, path, desiredAccess=FILE_WRITE_DATA)
-
-def remove_dir(smbconn, share, path):
-    #path = self.pathify(path)
-    smbconn.deleteDirectory(share, path)
+    fid = smbconn.createFile(tid, path, desiredAccess=FILE_SHARE_WRITE, shareMode=FILE_SHARE_DELETE)
+    smbconn.closeFile(tid, fid)
 
 def remove_file(smbconn, share, path):
     #path = self.pathify(path)
     smbconn.deleteFile(share, path)
+
+def remove_dir(smbconn, share, path):
+    #path = self.pathify(path)
+    smbconn.deleteDirectory(share, path)
 
 def pathify(path):
     root = ''
