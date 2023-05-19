@@ -1277,19 +1277,19 @@ def main():
             mysmb.exclude.append(ex_share.lower())
 
     if args.hostfile:
-        if os.path.isfile(args.hostfile):
-            with open(args.hostfile) as file:
-                for host in file.readlines():
-                    if host.find('/') > 0:
-                        try:
-                            host_list.extend([ str(ip) for ip in ipaddress.ip_network(host, False).hosts() ])
-                        except Exception as e:
-                            print('[!] Invalid host {}'.format(host))
-                            continue
-                    elif socket.gethostbyname(host):
-                        host_list.append(host)
-                    else:
+        with args.hostfile as file:
+            for host in file.readlines():
+                host = host.strip()
+                if host.find('/') > 0:
+                    try:
+                        host_list.extend([ str(ip) for ip in ipaddress.ip_network(host, False).hosts() ])
+                    except Exception as e:
                         print('[!] Invalid host {}'.format(host))
+                        continue
+                elif socket.gethostbyname(host):
+                    host_list.append(host)
+                else:
+                    print('[!] Invalid host {}'.format(host))
 
     if args.host:
         if args.host.find('/') > 0:
