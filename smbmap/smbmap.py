@@ -854,6 +854,7 @@ def to_string( smb_tree, mysmb):
     header = '\tDisk{}\tPermissions\tComment\n'.format(' '.ljust(50))
     header += '\t----{}\t-----------\t-------'.format(' '.ljust(50))
     heads_up = False
+    priv_status = ''
     try:
         for host in smb_tree.keys():
             if mysmb.hosts[host]['smbconn'][0].isGuestSession() > 0:
