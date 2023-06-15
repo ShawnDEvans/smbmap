@@ -26,7 +26,7 @@ setuptools.setup(
     install_requires = [
         'impacket',
         'pyasn1',
-        'pycrypto',
+        'pycryptodome',
         'configparser',
         'termcolor',
     ],
