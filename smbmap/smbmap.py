@@ -40,6 +40,10 @@ from termcolor import colored as termcolored
 # Seriously, the most amazing Python library ever!!
 # Many thanks to that dev team
 
+import resource
+rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
+
 OUTPUT_FILENAME = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',10))
 BATCH_FILENAME  = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10)) + '.bat'
 SMBSERVER_DIR   = ''.join(random.sample('ABCDEFGHIGJLMNOPQRSTUVWXYZ', 10))
@@ -865,6 +869,8 @@ def to_string( smb_tree, mysmb):
                     if mysmb.admin_only:
                         print(' '*100)
                         print('[+] IP: {}:{}\tName: {}\t{}'.format(host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(20), priv_status ))
+                else:
+                    priv_status = 'Status: ' + colored ('Authenticated', 'green')
             except:
                 priv_status = 'Status: ' + colored ('Authenticated', 'green')
 
@@ -876,42 +882,58 @@ def to_string( smb_tree, mysmb):
                 if smb_tree[host][share]['privs'] == 'NO ACCESS':
                     share_name_privs = colored('NO ACCESS', 'red')
 
-                if mysmb.verbose == True and not mysmb.admin_only:
+                if mysmb.admin_only == False:
                     if heads_up == False:
                         print(' '*100)
                         print('[+] IP: {}:{}\tName: {}\t{}'.format(host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(20), priv_status ))
                         print(header)
                         heads_up = True
-                    print('\t{}\t{}\t{}'.format(share.ljust(50), share_name_privs, smb_tree[host][share]['comment'] ) )
+
+                    if mysmb.verbose == True:
+                        print('\t{}\t{}\t{}'.format(share.ljust(50), share_name_privs, smb_tree[host][share]['comment'] ) )
+                    elif mysmb.verbose == False and smb_tree[host][share]['privs'] != 'NO ACCESS':
+                        print('\t{}\t{}\t{}'.format(share.ljust(50), share_name_privs, smb_tree[host][share]['comment'] ) )
+
+                    if mysmb.csv and mysmb.recursive == False:
+                        if ( mysmb.verbose == False and smb_tree[host][share]['privs'] != 'NO ACCESS') or mysmb.verbose == True:
+                            row = {}
+                            row['Host'] = host
+                            row['Share'] = share
+                            row['Privs'] = smb_tree[host][share]['privs'].replace(',','').replace(' ', '_')
+                            row['Comment'] = smb_tree[host][share]['comment']
+                            mysmb.writer.writerow(row)
+
                     if mysmb.grepable and len(smb_tree[host][share]['contents'].keys()) == 0:
                         mysmb.outfile.write('host:{}, share:{}, privs:{}\n'.format(host, share, smb_tree[host][share]['privs'].replace(',','').replace(' ', '_')))
-                    for path in smb_tree[host][share]['contents'].keys():
-                        if mysmb.grepable == False and mysmb.csv == False:
-                            print('\t./{}{}'.format(share, path))
-                        for file_info in smb_tree[host][share]['contents'][path]:
-                            isDir = file_info['isDir']
-                            readonly = file_info['readonly']
-                            filesize = file_info['filesize']
-                            date = file_info['date']
-                            filename = file_info['filename']
-                            if mysmb.grepable == False and mysmb.csv == False and ((mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.dir_only == False)):
-                                print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(16), date, filename))
-                            if mysmb.grepable:
-                                if filename != '.' and filename != '..':
-                                    if (mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.dir_only == False):
-                                        mysmb.outfile.write('host:{}, share:{}, privs:{}, isDir:{}, path:{}{}/{}, fileSize:{}, date:{}\n'.format(host, share, smb_tree[host][share]['privs'].replace(',','').replace(' ', '_'), isDir, share, path, filename, str(filesize), date))
-                            elif mysmb.csv:
-                                if filename != '.' and filename != '..':
-                                    if (mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.recursive ):
-                                        row = {}
-                                        row['Host'] = host
-                                        row['Share'] = share
-                                        row['Privs'] = smb_tree[host][share]['privs'].replace(',','').replace(' ', '_')
-                                        row['isDir'] = isDir
-                                        row['Path'] = '{}{}/{}'.format(share, path, filename)
-                                        row['fileSize'] = str(filesize)
-                                        row['Date'] = date
-                                        mysmb.writer.writerow(row)
+
+                    if mysmb.recursive:
+                        for path in smb_tree[host][share]['contents'].keys():
+                            if mysmb.grepable == False and mysmb.csv == False and mysmb.verbose == True:
+                                print('\t./{}{}'.format(share, path))
+                            for file_info in smb_tree[host][share]['contents'][path]:
+                                isDir = file_info['isDir']
+                                readonly = file_info['readonly']
+                                filesize = file_info['filesize']
+                                date = file_info['date']
+                                filename = file_info['filename']
+                                if mysmb.grepable == False and mysmb.csv == False and ((mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.dir_only == False)):
+                                    print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(16), date, filename))
+                                if mysmb.grepable:
+                                    if filename != '.' and filename != '..':
+                                        if (mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.dir_only == False):
+                                            mysmb.outfile.write('host:{}, share:{}, privs:{}, isDir:{}, path:{}{}/{}, fileSize:{}, date:{}\n'.format(host, share, smb_tree[host][share]['privs'].replace(',','').replace(' ', '_'), isDir, share, path, filename, str(filesize), date))
+                                elif mysmb.csv:
+                                    if filename != '.' and filename != '..':
+                                        if (mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.recursive ):
+                                            row = {}
+                                            row['Host'] = host
+                                            row['Share'] = share
+                                            row['Privs'] = smb_tree[host][share]['privs'].replace(',','').replace(' ', '_')
+                                            row['isDir'] = isDir
+                                            row['Path'] = '{}{}/{}'.format(share, path, filename)
+                                            row['fileSize'] = str(filesize)
+                                            row['Date'] = date
+                                            mysmb.writer.writerow(row)
 
             heads_up = False
     except Exception as e:
@@ -1241,7 +1263,7 @@ def main():
         mysmb.outfile = open(args.grepable, 'w')
 
     if args.csv:
-        mysmb.csv = args.csv
+        mysmb.csv = True
         mysmb.outfile = open(args.csv, 'w')
         if args.recursive_dir_list != None:
             csv_fields = ['Host', 'Share', 'Privs', 'isDir', 'Path', 'fileSize', 'Date']
@@ -1423,8 +1445,7 @@ def main():
                         smb_tree[host][share_drive_contents]['contents'] = path_list[host][share_drive_contents]
 
             mysmb.kill_loader()
-            if mysmb.verbose:
-                to_string(smb_tree, mysmb)
+            to_string(smb_tree, mysmb)
 
         if args.version:
             mysmb.kill_loader()
@@ -1485,7 +1506,7 @@ def main():
 
 
         if args.grepable or args.csv:
-            print('[*]','Grepable results output to: {}'.format(mysmb.outfile.name))
+            print('[*]','Results output to: {}'.format(mysmb.outfile.name))
             mysmb.outfile.close()
 
     sys.exit()
