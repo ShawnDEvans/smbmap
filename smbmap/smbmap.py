@@ -994,7 +994,7 @@ def get_shares( share_args ):
                             try:
                                 remove_dir(share_args['smbconn'], share_name, root)
                             except Exception as e:
-                                print('\t[!] Unable to remove test directory at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
+                                print('[!] Unable to remove test directory at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
                         except Exception as e:
                             exc_type, exc_obj, exc_tb = sys.exc_info()
                             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -1011,7 +1011,7 @@ def get_shares( share_args ):
                                 try:
                                     remove_file(share_args['smbconn'],share_name, root)
                                 except Exception as e:
-                                    print('\t[!] Unable to remove test file at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
+                                    print('[!] Unable to remove test file at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
                             except Exception as e:
                                 exc_type, exc_obj, exc_tb = sys.exc_info()
                                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -1028,12 +1028,15 @@ def get_shares( share_args ):
                     share_tree[host][share_name]['comment'] = share_comment
 
             return share_tree
+        except SessionError as e:
+            print('[!] Access denied on {}, no fun for you...'.format(share_args['host']))
+            return {}
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
             sys.stdout.flush()
-            return False
+            return {}
 
 def list_path( list_args ):
     # list_args is a dict object with the following keys
@@ -1398,10 +1401,13 @@ def main():
 
     if not args.file_content_search:
         if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.version:
-            mysmb
 
             share_pool = Pool()
             share_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host, 'write_check' : args.write_check, 'exclude' : mysmb.exclude } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
+
+            mysmb.kill_loader()
+            mysmb.loader = Loader('Enumerating shares...')
+            mysmb.loader.start()
 
             # this call returns an array of dict objects
             all_shares = share_pool.map(get_shares, share_args)
@@ -1427,16 +1433,18 @@ def main():
                                 list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][index] , 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
                 if args.pattern:
                     print('[*] Performing file name pattern match!')
+                
                 list_path_pool = Pool()
                 all_paths_listed = list_path_pool.map(list_path, list_path_args)
                 prev_hoat = None
 
             for share_drives_list in all_shares:
-                host = [ host for host in share_drives_list.keys() ][0]
-                smb_tree[host] = {}
-                for share in share_drives_list[host]:
-                    smb_tree[host][share] = share_drives_list[host][share]
-                    smb_tree[host][share]['contents'] = {}
+                if len(share_drives_list) > 0: 
+                    host = [ host for host in share_drives_list.keys() ][0]
+                    smb_tree[host] = {}
+                    for share in share_drives_list[host]:
+                        smb_tree[host][share] = share_drives_list[host][share]
+                        smb_tree[host][share]['contents'] = {}
 
             for path_list in all_paths_listed:
                 host = [ host for host in path_list.keys() ][0]
