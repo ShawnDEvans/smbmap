@@ -854,7 +854,7 @@ def find_open_ports(address):
     except Exception as e:
         return False
 
-def to_string( smb_tree, mysmb):
+def to_string(smb_tree, mysmb):
     header = '\tDisk{}\tPermissions\tComment\n'.format(' '.ljust(50))
     header += '\t----{}\t-----------\t-------'.format(' '.ljust(50))
     heads_up = False
@@ -909,7 +909,10 @@ def to_string( smb_tree, mysmb):
                     if mysmb.recursive:
                         for path in smb_tree[host][share]['contents'].keys():
                             if mysmb.grepable == False and mysmb.csv == False and mysmb.verbose == True:
-                                print('\t./{}{}'.format(share, path))
+                                if len(path) > 0 and path[0] == '/':
+                                    print('\t./{}{}'.format(share, path))
+                                else:
+                                    print('\t./{}/{}'.format(share, path))
                             for file_info in smb_tree[host][share]['contents'][path]:
                                 isDir = file_info['isDir']
                                 readonly = file_info['readonly']
@@ -1078,7 +1081,10 @@ def list_path( list_args ):
                 if list_args['pattern']:
                     fileMatch = re.search(list_args['pattern'].lower(), filename.lower())
                     if fileMatch:
-                        dlThis = '{}{}/{}'.format(share, path, filename)
+                        if len(path) > 0 and path[0] == '/':
+                            dlThis = '{}{}/{}'.format(share, path, filename)
+                        else:
+                            dlThis = '{}/{}/{}'.format(share, path, filename)
                         #dlThis = dlThis.replace('/','\\')
                         print('[+] Match found! Downloading: {}'.format(dlThis))
                         download_file(list_args['smbconn'], dlThis)
@@ -1216,7 +1222,7 @@ def main():
     sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
     sgroup3.add_argument("-q", dest="verbose", default=True, action="store_false", help="Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).")
-    sgroup3.add_argument("--depth", dest="depth", default=1, help="Traverse a directory tree to a specific depth. Default is 5.")
+    sgroup3.add_argument("--depth", dest="depth", default=1, help="Traverse a directory tree to a specific depth. Default is 1 (root node).")
     sgroup3.add_argument("--exclude", metavar="SHARE", dest="exclude", nargs="+", const=None, help="Exclude share(s) from searching and listing, ex. --exclude ADMIN$ C$'")
 
     sgroup4 = parser.add_argument_group("File Content Search", "Options for searching the content of files (must run as root), kind of experimental")
@@ -1453,7 +1459,8 @@ def main():
                         smb_tree[host][share_drive_contents]['contents'] = path_list[host][share_drive_contents]
 
             mysmb.kill_loader()
-            to_string(smb_tree, mysmb)
+            if not args.pattern:
+                to_string(smb_tree, mysmb)
 
         if args.version:
             mysmb.kill_loader()
