@@ -6,7 +6,7 @@ with open("README.md", "r", encoding = "utf-8") as fh:
 
 setuptools.setup(
     name = "smbmap",
-    version = "1.9.3",
+    version = "1.9.3.1",
     author = "ShawnDEvans",
     author_email = "Shawn.Evans@knowledgeCG.com",
     description = " SMBMap is a handy SMB enumeration tool ",
