@@ -26,7 +26,7 @@ from impacket.dcerpc.v5 import transport, scmr
 from impacket.dcerpc.v5.dcomrt import DCOMConnection
 from impacket.dcerpc.v5.dcom import wmi
 from impacket.dcerpc.v5.dtypes import NULL
-from impacket.smb3structs import FILE_WRITE_DATA
+from impacket.smb3structs import *
 
 import ntpath
 import cmd
@@ -82,7 +82,10 @@ class Loader(Thread):
         Thread.__init__(self)
         self._running = True
         self._progress = '\\|/-\\|/-'
-        self._msg = msg
+        self._msg = '{}{}'.format(msg, ' '*100)
+    
+    def update(self, msg):
+        self._msg = '{}{}'.format(msg, ' '*100)
 
     def terminate(self):
         self._running = False
@@ -96,7 +99,7 @@ class Loader(Thread):
         while self._running:
             for char in self._progress:
                 if SEND_UPDATE_MSG:
-                    print('[{}] {}...'.format(char, self._msg), end='')
+                    print('[{}] {}'.format(char, self._msg), end='')
                     print('\r', end='')
                     time.sleep(0.05)
 
@@ -690,7 +693,7 @@ class SMBMap():
                                 os.remove('./{}/{}.bat'.format(PSUTIL_DIR, job))
                         time.sleep(10)
             except Exception as e:
-                print(e)
+                print('[!]', e)
         print('[+] All jobs complete')
         print(self.search_output_buffer)
 
@@ -731,7 +734,7 @@ class SMBMap():
                 for disk in disks:
                      print('\t%s' % (disk))
             else:
-                print('\tNo mapped network drives')
+                print('[*] No mapped network drives')
             pass
         except Exception as e:
             print('[!] Error on {}: {}'.format(host, e))
@@ -772,7 +775,7 @@ class SMBMap():
         path = ntpath.normpath(path)
         filename = path.split('\\')[-1]
         share = path.split('\\')[0]
-        path = path.replace(share, '')
+        path = path.replace(share, '', 1)
         path = path.replace(filename, '')
         try:
             self.hosts[host]['smbconn'][0].deleteFile(share, path + filename)
@@ -784,7 +787,7 @@ class SMBMap():
             elif 'STATUS_INVALID_PARAMETER' in str(e):
                 print('[!] Error deleting file, invalid path')
             elif 'STATUS_SHARING_VIOLATION' in str(e):
-                print('[!] Error retrieving file, sharing violation')
+                print('[!] Error deleting file, sharing violation')
             elif 'STATUS_FILE_IS_A_DIRECTORY' in str(e):
                 self.hosts[host]['smbconn'][0].deleteDirectory(share, path)
                 #self.remove_dir(host, share, path)
@@ -836,7 +839,7 @@ def get_version( version_args ):
     print("[+] {}:{} is running {} (name:{}) (domain:{})".format(host, 445, smbconn.getServerOS(), smbconn.getServerName(), domain))
 
 def signal_handler(signal, frame):
-    print('You pressed Ctrl+C!')
+    print('[*] You pressed Ctrl+C!')
     os._exit(0)
 
 def find_open_ports(address):
@@ -908,11 +911,11 @@ def to_string(smb_tree, mysmb):
 
                     if mysmb.recursive:
                         for path in smb_tree[host][share]['contents'].keys():
-                            if mysmb.grepable == False and mysmb.csv == False and mysmb.verbose == True:
+                            if mysmb.grepable == False and mysmb.csv == False:
                                 if len(path) > 0 and path[0] == '/':
-                                    print('\t./{}{}'.format(share, path))
-                                else:
                                     print('\t./{}/{}'.format(share, path))
+                                else:
+                                    print('\t./{}{}'.format(share, path))
                             for file_info in smb_tree[host][share]['contents'][path]:
                                 isDir = file_info['isDir']
                                 readonly = file_info['readonly']
@@ -924,7 +927,8 @@ def to_string(smb_tree, mysmb):
                                 if mysmb.grepable:
                                     if filename != '.' and filename != '..':
                                         if (mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.dir_only == False):
-                                            mysmb.outfile.write('host:{}, share:{}, privs:{}, isDir:{}, path:{}{}/{}, fileSize:{}, date:{}\n'.format(host, share, smb_tree[host][share]['privs'].replace(',','').replace(' ', '_'), isDir, share, path, filename, str(filesize), date))
+                                            mysmb.outfile.write('host:{}, share:{}, privs:{}, isDir:{}, path:{}/{}/{}, fileSize:{}, date:{}\n'.format(host, share, smb_tree[host][share]['privs'].replace(',','').replace(' ', '_'), isDir, share, path, filename, str(filesize), date))
+
                                 elif mysmb.csv:
                                     if filename != '.' and filename != '..':
                                         if (mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.recursive ):
@@ -933,7 +937,7 @@ def to_string(smb_tree, mysmb):
                                             row['Share'] = share
                                             row['Privs'] = smb_tree[host][share]['privs'].replace(',','').replace(' ', '_')
                                             row['isDir'] = isDir
-                                            row['Path'] = '{}{}/{}'.format(share, path, filename)
+                                            row['Path'] = '{}/{}/{}'.format(share, path, filename)
                                             row['fileSize'] = str(filesize)
                                             row['Date'] = date
                                             mysmb.writer.writerow(row)
@@ -1061,7 +1065,7 @@ def list_path( list_args ):
     depth = list_args['depth']
     path = list_args['path']
     host = list_args['host']
-
+    
     if list_args['path_list'] is None:
         list_args['path_list'] = {}
         path_list = { host : { share : {} } }
@@ -1069,6 +1073,7 @@ def list_path( list_args ):
         path_list = list_args['path_list']
 
     try:
+        
         raw_path_list = list_args['smbconn'].listPath(share, pwd)
         path_list[host][share][path] = []
         for item in raw_path_list:
@@ -1135,12 +1140,12 @@ def download_file(smbconn, path):
         elif 'STATUS_SHARING_VIOLATION' in str(e):
             print('[!] Error retrieving file %s, sharing violation' % (filename))
             out.close()
-            os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
+        os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
     except Exception as e:
         print('[!] Error retrieving file, unknown error')
-        print(e)
-        os.remove(filename)
-    return '%s/%s' % (os.getcwd(),output_path)
+        print('[!]', e)
+        os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
+    return '{}/{}'.format(os.getcwd(),output_path)
 
 def create_file(smbconn, share, path):
     tid = smbconn.connectTree(share)
@@ -1216,8 +1221,8 @@ def main():
     mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host, requires ADMIN rights.")
     mex_group2.add_argument("-r", metavar="PATH", dest="recursive_dir_list", nargs="?", const='/', help="Recursively list dirs and files (no share\path lists the root of ALL shares), ex. 'email/backup'")
     mex_group3 = sgroup3.add_mutually_exclusive_group()
-    mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -r), not case sensitive, ex '(web|global).(asax|config)'")
     mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, used with -r (otherwise it outputs nothing), ex -g grep_out.txt")
+    mex_group3.add_argument("-A", metavar="PATTERN", dest="pattern", help="Define a file name pattern (regex) that auto downloads a file on a match (requires -r), not case sensitive, ex '(web|global).(asax|config)'")
     mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, ex --csv shares.csv")
     sgroup3.add_argument("--dir-only", dest='dir_only', action='store_true', help="List only directories, ommit files.")
     sgroup3.add_argument("--no-write-check", dest='write_check', action='store_false', help="Skip check to see if drive grants WRITE access.")
@@ -1333,7 +1338,7 @@ def main():
             print('[!] Invalid host...')
             sys.exit(1)
 
-    mysmb.loader = Loader('Checking for open ports')
+    mysmb.loader = Loader('Checking for open ports...')
     mysmb.loading = True
     mysmb.loader.start()
     if len(host_list) > 0:
@@ -1348,7 +1353,8 @@ def main():
         lmhash, nthash = args.passwd.split(':')
     else:
         lmhash, nthash = ('', '')
-
+    
+    mysmb.loader.update('Initializing hosts...')
     if host_list:
         for ip in host_list:
             if ip:
@@ -1360,10 +1366,7 @@ def main():
     if args.admin:
         mysmb.admin_only = True
 
-    mysmb.kill_loader()
-
-    mysmb.loader = Loader('Authenticating...')
-    mysmb.loader.start()
+    mysmb.loader.update('Authenticating...')
     connections = []
     login_worker = Pool()
     connections = login_worker.map(login, hosts_auth)
@@ -1378,9 +1381,7 @@ def main():
 
     if args.file_content_search:
         smb_server = mysmb.start_smb_server()
-        mysmb.kill_loader()
-        mysmb.loader = Loader('Doing RCE things...')
-        mysmb.loader.start()
+        mysmb.loader.update('Doing RCE things...')
         for host in list(mysmb.hosts.keys()):
             if args.search_path[-1] == '\\':
                 search_path = args.search_path[:-1]
@@ -1394,16 +1395,13 @@ def main():
                 pass
         print('[+] File search started on {} hosts in directory {}...this could take a while'.format(counter, search_path))
         mysmb.get_search_results(args.search_timeout)
-        mysmb.kill_loader()
-        mysmb.loader = Loader('Cleaning up!')
-        mysmb.loader.start()
+        mysmb.loader.update('Cleaning up!')
         for host in list(mysmb.hosts.keys()):
             try:
                 mysmb.logout(host)
             except:
                 continue
         smb_server.stop()
-        mysmb.kill_loader()
 
     if not args.file_content_search:
         if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.version:
@@ -1411,9 +1409,7 @@ def main():
             share_pool = Pool()
             share_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host, 'write_check' : args.write_check, 'exclude' : mysmb.exclude } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
 
-            mysmb.kill_loader()
-            mysmb.loader = Loader('Enumerating shares...')
-            mysmb.loader.start()
+            mysmb.loader.update('Enumerating and traversing shares...')
 
             # this call returns an array of dict objects
             all_shares = share_pool.map(get_shares, share_args)
@@ -1422,11 +1418,11 @@ def main():
             all_paths_listed = []
             list_path_args = []
             if mysmb.recursive or mysmb.dir_only:
-                mysmb.kill_loader()
-                mysmb.loader = Loader('Traversing drives...')
-                mysmb.loader.start()
                 for host_shares in all_shares:
-                    host = [ host for host in host_shares.keys() ][0]
+                    if len(host_shares.keys()) > 0:
+                        host = [ host for host in host_shares.keys() ][0]
+                    else:
+                        continue
                     if len(host_shares[host].keys()) > 0:
                         mysmb.hosts[host]['smbconn'][0].close()
                         mysmb.hosts[host]['smbconn'].pop()
@@ -1439,7 +1435,6 @@ def main():
                                 list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][index] , 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
                 if args.pattern:
                     print('[*] Performing file name pattern match!')
-                
                 list_path_pool = Pool()
                 all_paths_listed = list_path_pool.map(list_path, list_path_args)
                 prev_hoat = None
@@ -1453,21 +1448,21 @@ def main():
                         smb_tree[host][share]['contents'] = {}
 
             for path_list in all_paths_listed:
-                host = [ host for host in path_list.keys() ][0]
-                for share_drive_contents in path_list[host]:
-                    if path_list[host][share_drive_contents]:
-                        smb_tree[host][share_drive_contents]['contents'] = path_list[host][share_drive_contents]
+                if path_list:
+                    host = [ host for host in path_list.keys() ][0]
+                    for share_drive_contents in path_list[host]:
+                        if path_list[host][share_drive_contents]:
+                            smb_tree[host][share_drive_contents]['contents'] = path_list[host][share_drive_contents]
 
-            mysmb.kill_loader()
             if not args.pattern:
+                mysmb.kill_loader()
                 to_string(smb_tree, mysmb)
 
         if args.version:
-            mysmb.kill_loader()
+            mysmb.loader.update('Grabbing version info.')
             version_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
             version_pool = Pool()
             versions = version_pool.map(get_version, version_args)
-            sys.exit(1)
 
         for host in list(mysmb.hosts.keys()):
             is_admin = False
@@ -1479,7 +1474,6 @@ def main():
 
             try:
                 if args.dlPath:
-                    mysmb.kill_loader()
                     download_file(mysmb.hosts[host]['smbconn'][0], args.dlPath)
 
                 if args.upload:
@@ -1491,17 +1485,11 @@ def main():
                 if args.list_drives:
                     if is_admin:
                         mysmb.list_drives(host, args.share)
-                        mysmb.kill_loader()
-                    else:
-                        mysmb.kill_loader()
 
                 if args.command:
-                    mysmb.kill_loader()
-                    mysmb.loader = Loader('Executing {} command, hang tight...'.format(args.mode))
-                    mysmb.loader.start()
+                    mysmb.loader.update('Executing {} command, hang tight...'.format(args.mode))
                     if is_admin:
                         cmd_output = mysmb.exec_command(host, args.share, args.command, False, mysmb.hosts[host]['name'], args.mode)
-                        mysmb.kill_loader()
                         if cmd_output:
                             print(cmd_output)
 
