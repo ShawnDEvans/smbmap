@@ -15,7 +15,7 @@ import inspect
 import csv
 import getpass
 
-from threading import Thread
+from threading import Thread, Event
 from multiprocessing.pool import Pool
 from impacket.examples import logger
 from impacket import version, smbserver
@@ -55,6 +55,7 @@ VERBOSE = False
 USE_TERMCOLOR=True
 SEND_UPDATE_MSG=True
 PORT_SCAN_TIMEOUT = .5
+USE_CCACHE = False
 
 banner = r"""
     ________  ___      ___  _______   ___      ___       __         _______
@@ -80,27 +81,38 @@ def colored(msg, *args, **kwargs):
 class Loader(Thread):
     def __init__(self, msg='Working on it'):
         Thread.__init__(self)
-        self._running = True
+        self.__running = Event()
+        self.__running.set()
+        self.__flag = Event()
+        self.__flag.set()
         self._progress = '\\|/-\\|/-'
         self._msg = '{}{}'.format(msg, ' '*100)
-    
+
     def update(self, msg):
         self._msg = '{}{}'.format(msg, ' '*100)
 
     def terminate(self):
-        self._running = False
+        self.__flag.set()
+        self.__running.clear()
+
+    def pause(self):
+        self.__flag.clear()
+
+    def resume(self):
+        self.__flag.set()
 
     def cleanup(self):
-        print(' '*64, end='')
-        print('\r', end='')
+        print(' '*100, end='\r')
+        print('\r', end='\r')
 
     def run(self):
         global SEND_UPDATE_MSG
-        while self._running:
+        while self.__running.isSet():
             for char in self._progress:
                 if SEND_UPDATE_MSG:
-                    print('[{}] {}'.format(char, self._msg), end='')
-                    print('\r', end='')
+                    self.__flag.wait()
+                    print('[{}] {}'.format(char, self._msg), end='\r')
+                    print('\r', end='\r')
                     time.sleep(0.05)
 
 class SimpleSMBServer(Thread):
@@ -836,7 +848,7 @@ def get_version( version_args ):
     domain = smbconn.getServerDomain()
     if not domain:
         domain = smbconn.getServerName()
-    print("[+] {}:{} is running {} (name:{}) (domain:{})".format(host, 445, smbconn.getServerOS(), smbconn.getServerName(), domain))
+    print("[+] {:<16} is running {} (name:{}) (domain:{})".format(host, smbconn.getServerOS(), smbconn.getServerName(), domain))
 
 def signal_handler(signal, frame):
     print('[*] You pressed Ctrl+C!')
@@ -972,7 +984,7 @@ def get_shares( share_args ):
     #    } ]
 
     share_tree = {}
-    if share_args['smbconn']:
+    if share_args['smbconn'].getSessionKey():
         try:
             shareList = share_args['smbconn'].listShares()
             shares = []
@@ -1016,9 +1028,12 @@ def get_shares( share_args ):
                                 share_tree[host][share_name]['privs'] = 'READ, WRITE'
                                 canWrite = True
                                 try:
-                                    remove_file(share_args['smbconn'],share_name, root)
+                                    remove_file(share_args['smbconn'], share_name, root)
                                 except Exception as e:
-                                    print('[!] Unable to remove test file at \\\\%s\\%s\\%s, please remove manually' % (host, share_name, root))
+                                    if 'STATUS_OBJECT_NAME_NOT_FOUND' in str(e):
+                                        pass
+                                    else:
+                                        print('[!] Unable to remove test file at \\\\{}\\{}\\{}, please remove manually'.format(host, share_name, root))
                             except Exception as e:
                                 exc_type, exc_obj, exc_tb = sys.exc_info()
                                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -1037,13 +1052,12 @@ def get_shares( share_args ):
             return share_tree
         except SessionError as e:
             print('[!] Access denied on {}, no fun for you...'.format(share_args['host']))
-            return {}
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
             sys.stdout.flush()
-            return {}
+    return {}
 
 def list_path( list_args ):
     # list_args is a dict object with the following keys
@@ -1065,7 +1079,7 @@ def list_path( list_args ):
     depth = list_args['depth']
     path = list_args['path']
     host = list_args['host']
-    
+
     if list_args['path_list'] is None:
         list_args['path_list'] = {}
         path_list = { host : { share : {} } }
@@ -1073,7 +1087,7 @@ def list_path( list_args ):
         path_list = list_args['path_list']
 
     try:
-        
+
         raw_path_list = list_args['smbconn'].listPath(share, pwd)
         path_list[host][share][path] = []
         for item in raw_path_list:
@@ -1123,11 +1137,11 @@ def download_file(smbconn, path):
     share = path.split('\\')[0]
     path = path.replace(share, '', 1)
     host = socket.gethostbyname(smbconn.getRemoteHost())
-    output_path = ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_'))))
 
     try:
+        output_path = ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_'))))
         dlFile = smbconn.listPath(share, path)
-        print('[+] Starting download: {} ({} bytes)'.format('{}{}'.format(share, path), dlFile[0].get_filesize()))
+        print('[+] Starting download: {}{} ({} bytes)'.format(share, path, dlFile[0].get_filesize()))
         with open(output_path, 'wb') as out:
             smbconn.getFile(share, path, out.write)
         print('[+] File output to: %s/%s' % (os.getcwd(), output_path))
@@ -1139,12 +1153,9 @@ def download_file(smbconn, path):
             print('[!] Error retrieving file, invalid path')
         elif 'STATUS_SHARING_VIOLATION' in str(e):
             print('[!] Error retrieving file %s, sharing violation' % (filename))
-            out.close()
-        os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
-    except Exception as e:
-        print('[!] Error retrieving file, unknown error')
-        print('[!]', e)
-        os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
+        elif 'STATUS_NO_SUCH_FILE' in str(e):
+            print('[!] Error retrieving file, no such file')
+        #os.remove(ntpath.basename('%s/%s' % (os.getcwd(), '%s-%s%s' % (host, share.replace('$',''), path.replace('\\','_')))))
     return '{}/{}'.format(os.getcwd(),output_path)
 
 def create_file(smbconn, share, path):
@@ -1168,21 +1179,86 @@ def pathify(path):
     root = ntpath.normpath(root)
     return root
 
-def login(host):
+def login_kerberos(host):
+    smbconn = None
     try:
         if host['port'] == 445:
             smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=4)
         else:
             smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=4)
+    except Exception as e:
+            print('[!] Connection error on {}'.format(host['ip']))
 
-        smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
+    if smbconn:
+        try:
+            smbconn.kerberosLogin(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'], kdcHost=host['kdc'], useCache=USE_CCACHE)
+        except Exception as e:
+            print('[!] Authentication error on {}'.format(host['ip']), e)
 
         return smbconn
 
+    return False
+
+def login(host):
+    smbconn = None
+    try:
+        if host['port'] == 445:
+            smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=4)
+        else:
+            smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=4)
     except Exception as e:
-        if VERBOSE:
-            print('[!] Authentication error on {}'.format(host['ip']))
-        return False
+            print('[!] Connection error on {}'.format(host['ip']))
+
+    if smbconn:
+        try:
+            smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
+        except Exception as e:
+            if VERBOSE:
+                print('[!] Authentication error on {}'.format(host['ip']))
+        return smbconn
+
+    return False
+
+def check_smb_signing(signing_args):
+    ip = signing_args['host']
+    my_smb = None
+
+    #First try to negotiate a session with legacy SMB dialect
+    try:
+        my_smb = smb.SMB('.', ip)
+    except Exception as e:
+        pass
+
+    #Then try to negotiate a session with SMB3 dialect
+    if my_smb == None:
+        try:
+            my_smb = smb3.SMB3('.', ip)
+        except Exception as e:
+            pass
+
+    if my_smb:
+        try:
+            if my_smb._Connection['RequireSigning'] == True:
+                print(f'[+] {ip:<16}\tsigning required')
+                return True
+            elif isinstance(my_smb, smb3.SMB3) and my_smb._Connection['RequireSigning'] == False:
+                print(f'[-] {ip:<16}\tsigning enabled (not required)')
+                return False
+        except AttributeError as e:
+            pass
+
+        try:
+            if isinstance(my_smb, smb.SMB):
+                if my_smb._dialects_parameters:
+                    if my_smb._dialects_parameters.fields['SecurityMode'] == 7:
+                        print(f'[-] {ip:<16}\tsigning enabled (not required)')
+                        return True
+                    elif my_smb._dialects_parameters.fields['SecurityMode'] == 3:
+                        print(f'[!] {ip:<16}\tsigning disabled')
+                        return True
+        except Exception as e:
+            pass
+    return False
 
 def main():
     example = 'Examples:\n\n'
@@ -1195,16 +1271,21 @@ def main():
     sgroup = parser.add_argument_group("Main arguments")
     mex_group = sgroup.add_mutually_exclusive_group(required=True)
     pass_group = sgroup.add_mutually_exclusive_group()
+    kerb_group = parser.add_argument_group('Kereros settings')
     mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP of host", default=False)
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
 
-    sgroup.add_argument("-u", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
-    pass_group.add_argument("-p", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
+    sgroup.add_argument("-u","--username", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
+    pass_group.add_argument("-p", "--password", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
     pass_group.add_argument("--prompt", action='store_true', default=False, help="Prompt for a password")
+    kerb_group.add_argument("-k", "--kerberos", action='store_true', dest='kerberos_auth', default=False, help="Use Kerberos authentication")
+    kerb_group.add_argument("--no-pass", dest='no_pass', action='store_true', default=False, help="Use CCache file (export KRB5CCNAME='~/current.ccache')")
+    kerb_group.add_argument("--dc-ip", metavar="IP or Host", dest='dc_ip', default=None, help="IP or FQDN of DC")
     sgroup.add_argument("-s", metavar="SHARE", dest='share', default='C$', help="Specify a share (default C$), ex 'C$'")
     sgroup.add_argument("-d", metavar="DOMAIN", dest='domain', default="WORKGROUP", help="Domain name (default WORKGROUP)")
     sgroup.add_argument("-P", metavar="PORT", dest='port', type=int, default=445, help="SMB port (default 445)")
-    sgroup.add_argument("-v", dest='version', default=False, action='store_true', help="Return the OS version of the remote host")
+    sgroup.add_argument("-v","--version", dest='version', default=False, action='store_true', help="Return the OS version of the remote host")
+    sgroup.add_argument("--signing", dest='signing', default=False, action='store_true', help="Check if host has SMB signing disabled, enabled, or required")
     sgroup.add_argument("--admin", dest='admin', default=False, action='store_true', help='Just report if the user is an admin')
     sgroup.add_argument("--no-banner", dest='nobanner', default=False, action='store_true', help='Removes the banner from the top of the output')
     sgroup.add_argument("--no-color", dest='nocolor', default=False, action='store_true', help='Removes the color from output')
@@ -1240,7 +1321,6 @@ def main():
     sgroup5.add_argument("--upload", nargs=2, dest='upload', metavar=('SRC', 'DST'), help="Upload a file to the remote system ex. '/tmp/payload.exe C$\\temp\\payload.exe'")
     sgroup5.add_argument("--delete", dest="delFile", metavar="PATH TO FILE", help="Delete a remote file, ex. 'C$\\temp\\msf.exe'")
     sgroup5.add_argument("--skip", default=False, action="store_true", help="Skip delete file confirmation prompt")
-
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -1353,25 +1433,38 @@ def main():
         lmhash, nthash = args.passwd.split(':')
     else:
         lmhash, nthash = ('', '')
-    
+
+    if args.dc_ip:
+        kdc_host = args.dc_ip
+    else:
+        kdc_host = ''
+
+    if args.no_pass:
+        global USE_CCACHE
+        USE_CCACHE = True
+
     mysmb.loader.update('Initializing hosts...')
     if host_list:
         for ip in host_list:
             if ip:
                 try:
-                    hosts_auth.append({ 'ip' : socket.gethostbyname(ip.strip()), 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash, 'smbconn' : [] })
+                    hosts_auth.append({ 'ip' : socket.gethostbyname(ip.strip()), 'name' : socket.getnameinfo((ip.strip(), args.port),0)[0] , 'port' : args.port, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash, 'smbconn' : [] ,'kdc' : kdc_host })
                 except Exception as e:
-                    hosts_auth.append({ 'ip' : socket.gethostbyname(ip.strip()), 'name' : ip.strip(), 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash , 'smbconn' : [] })
+                    hosts_auth.append({ 'ip' : socket.gethostbyname(ip.strip()), 'name' : ip.strip(), 'port' : 445, 'user' : args.user, 'passwd' : args.passwd, 'domain' : args.domain, 'lmhash' : lmhash, 'nthash' : nthash , 'smbconn' : [] , 'kdc' : kdc_host })
                     continue
     if args.admin:
         mysmb.admin_only = True
 
     mysmb.loader.update('Authenticating...')
     connections = []
-    login_worker = Pool()
-    connections = login_worker.map(login, hosts_auth)
+    if args.kerberos_auth:
+        login_worker = Pool()
+        connections = login_worker.map(login_kerberos, hosts_auth)
+    else:
+        login_worker = Pool()
+        connections = login_worker.map(login, hosts_auth)
     if len(connections) > 0:
-        print('[*] Established {} SMB session(s)'.format(len( [ True for conn in connections if conn != False ])))
+        print('[*] Established {} SMB connections(s) and {} authentidated session(s)'.format(len( [ True for conn in connections if conn != False ]), len([ True for conn in connections if conn.getSessionKey() ])))
     mysmb.hosts = { value['ip']:value for value in hosts_auth }
     for conn in connections:
         if conn:
@@ -1404,7 +1497,7 @@ def main():
         smb_server.stop()
 
     if not args.file_content_search:
-        if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.version:
+        if not args.dlPath and not args.upload and not args.delFile and not args.list_drives and not args.command and not args.version and not args.signing:
 
             share_pool = Pool()
             share_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host, 'write_check' : args.write_check, 'exclude' : mysmb.exclude } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
@@ -1417,7 +1510,7 @@ def main():
             smb_tree = {}
             all_paths_listed = []
             list_path_args = []
-            if mysmb.recursive or mysmb.dir_only:
+            if mysmb.recursive or mysmb.dir_only and all_shares:
                 for host_shares in all_shares:
                     if len(host_shares.keys()) > 0:
                         host = [ host for host in host_shares.keys() ][0]
@@ -1440,7 +1533,7 @@ def main():
                 prev_hoat = None
 
             for share_drives_list in all_shares:
-                if len(share_drives_list) > 0: 
+                if len(share_drives_list) > 0:
                     host = [ host for host in share_drives_list.keys() ][0]
                     smb_tree[host] = {}
                     for share in share_drives_list[host]:
@@ -1460,9 +1553,17 @@ def main():
 
         if args.version:
             mysmb.loader.update('Grabbing version info.')
+            mysmb.loader.pause()
             version_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
             version_pool = Pool()
             versions = version_pool.map(get_version, version_args)
+
+        if args.signing:
+            mysmb.loader.update('Checking for SMB signing.')
+            mysmb.loader.pause()
+            signing_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
+            signing_pool = Pool()
+            signing = signing_pool.map(check_smb_signing, signing_args)
 
         for host in list(mysmb.hosts.keys()):
             is_admin = False
@@ -1493,20 +1594,17 @@ def main():
                         if cmd_output:
                             print(cmd_output)
 
-
-                mysmb.kill_loader()
-
                 try:
                     mysmb.logout(host)
                 except:
                     pass
 
             except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print('[!] Error: ', (exc_type, fname, exc_tb.tb_lineno))
+                print('[!]', e)
                 sys.stdout.flush()
+                pass
 
+        mysmb.kill_loader()
 
         if args.grepable or args.csv:
             print('[*]','Results output to: {}'.format(mysmb.outfile.name))

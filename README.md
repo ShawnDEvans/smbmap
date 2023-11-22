@@ -29,6 +29,9 @@ usage: smbmap [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | --p
 - Distrubted file content searching (beta!)
 - File name matching (with an auto downoad capability)
 - Host file parser supports IPs, host names, and CIDR
+- SMB sigining detection
+- Server version output
+- Kerberos support! (super beta)
 
 ## Help
 ```
@@ -164,6 +167,49 @@ $ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$/Users'
     dr--r--r--                0 Wed Apr 22 13:33:01 2015    wingus
 ```
 
+## Scan for SMB signing support
+```
+shawnevans@pop-os:~/tools/smbmap/smbmap$ ./smbmap.py --host-file local.txt --signing
+
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+ -----------------------------------------------------------------------------
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+                     https://github.com/ShawnDEvans/smbmap
+
+[*] Detected 3 hosts serving SMB                                                                                                  
+[*] Established 3 SMB connections(s) and 2 authentidated session(s)                                                      
+[-] 192.168.86.204  	signing enabled (not required)
+[!] 192.168.86.213  	signing disabled
+[+] 192.168.86.179  	signing required
+```
+## Get version info
+```
+shawnevans@pop-os:~/tools/smbmap/smbmap$ ./smbmap.py --host-file local.txt -v
+
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+ -----------------------------------------------------------------------------
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+                     https://github.com/ShawnDEvans/smbmap
+
+[*] Detected 3 hosts serving SMB                                                                                                  
+[*] Established 3 SMB connections(s) and 2 authentidated session(s)                                                      
+[+] 192.168.86.204   is running Windows 6.1 Build 7601 (name:SHAWNEVANS-PC) (domain:SHAWNEVANS-PC)
+[+] 192.168.86.213   is running Windows 6.1 Build 7601 (name:SHAWNEVANS-PC) (domain:SHAWNEVANS-PC)
+[+] 192.168.86.179   is running Windows 10.0 Build 19041 (name:DESKTOP-M8N2DCC) (domain:DESKTOP-M8N2DCC)
+
+```
 ## File Content Searching:
 ```
 $ python smbmap.py --host-file ~/Desktop/smb-workstation-sml.txt -u NopSec -p 'NopSec1234!' -d widgetworld -F '[1-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]'
@@ -212,6 +258,8 @@ $ python smbmap.py -H 192.168.1.24 -u Administrator -p 'R33nisP!nckle' -L
 [+] Host 192.168.1.24 Net Drive(s):
     E:      \\vboxsrv\Public      VirtualBox Shared Folders
 ```
+
+
 
 ## Nifty Shell:
 Run Powershell Script on Victim SMB host (change the IP in the code to your IP addres, i.e where the shell connects back to)
