@@ -35,9 +35,9 @@ usage: smbmap [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | --p
 
 ## Help
 ```
-usage: smbmap.py [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | --prompt] [-s SHARE] [-d DOMAIN] [-P PORT] [-v] [--admin] [--no-banner] [--no-color] [--no-update] [--timeout SCAN_TIMEOUT] [-x COMMAND] [--mode CMDMODE]
-                 [-L | -r [PATH]] [-A PATTERN | -g FILE | --csv FILE] [--dir-only] [--no-write-check] [-q] [--depth DEPTH] [--exclude SHARE [SHARE ...]] [-F PATTERN] [--search-path PATH] [--search-timeout TIMEOUT] [--download PATH]
-                 [--upload SRC DST] [--delete PATH TO FILE] [--skip]
+usage: smbmap.py [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | --prompt] [-k] [--no-pass] [--dc-ip IP or Host] [-s SHARE] [-d DOMAIN] [-P PORT] [-v] [--signing] [--admin] [--no-banner] [--no-color] [--no-update]
+                 [--timeout SCAN_TIMEOUT] [-x COMMAND] [--mode CMDMODE] [-L | -r [PATH]] [-g FILE | -A PATTERN | --csv FILE] [--dir-only] [--no-write-check] [-q] [--depth DEPTH] [--exclude SHARE [SHARE ...]] [-F PATTERN]
+                 [--search-path PATH] [--search-timeout TIMEOUT] [--download PATH] [--upload SRC DST] [--delete PATH TO FILE] [--skip]
 
     ________  ___      ___  _______   ___      ___       __         _______
    /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
@@ -56,19 +56,27 @@ options:
 Main arguments:
   -H HOST               IP of host
   --host-file FILE      File containing a list of hosts
-  -u USERNAME           Username, if omitted null session assumed
-  -p PASSWORD           Password or NTLM hash
+  -u USERNAME, --username USERNAME
+                        Username, if omitted null session assumed
+  -p PASSWORD, --password PASSWORD
+                        Password or NTLM hash
   --prompt              Prompt for a password
   -s SHARE              Specify a share (default C$), ex 'C$'
   -d DOMAIN             Domain name (default WORKGROUP)
   -P PORT               SMB port (default 445)
-  -v                    Return the OS version of the remote host
+  -v, --version         Return the OS version of the remote host
+  --signing             Check if host has SMB signing disabled, enabled, or required
   --admin               Just report if the user is an admin
   --no-banner           Removes the banner from the top of the output
   --no-color            Removes the color from output
   --no-update           Removes the "Working on it" message
   --timeout SCAN_TIMEOUT
                         Set port scan socket timeout. Default is .5 seconds
+
+Kereros settings:
+  -k, --kerberos        Use Kerberos authentication
+  --no-pass             Use CCache file (export KRB5CCNAME='~/current.ccache')
+  --dc-ip IP or Host    IP or FQDN of DC
 
 Command Execution:
   Options for executing commands on the specified host
@@ -81,13 +89,13 @@ Shard drive Search:
 
   -L                    List all drives on the specified host, requires ADMIN rights.
   -r [PATH]             Recursively list dirs and files (no share\path lists the root of ALL shares), ex. 'email/backup'
-  -A PATTERN            Define a file name pattern (regex) that auto downloads a file on a match (requires -r), not case sensitive, ex '(web|global).(asax|config)'
   -g FILE               Output to a file in a grep friendly format, used with -r (otherwise it outputs nothing), ex -g grep_out.txt
+  -A PATTERN            Define a file name pattern (regex) that auto downloads a file on a match (requires -r), not case sensitive, ex '(web|global).(asax|config)'
   --csv FILE            Output to a CSV file, ex --csv shares.csv
   --dir-only            List only directories, ommit files.
   --no-write-check      Skip check to see if drive grants WRITE access.
   -q                    Quiet verbose output. Only shows shares you have READ or WRITE on, and suppresses file listing when performing a search (-A).
-  --depth DEPTH         Traverse a directory tree to a specific depth. Default is 5.
+  --depth DEPTH         Traverse a directory tree to a specific depth. Default is 1 (root node).
   --exclude SHARE [SHARE ...]
                         Exclude share(s) from searching and listing, ex. --exclude ADMIN$ C$'
 
@@ -118,16 +126,32 @@ $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -Hh 10.1.3.30 -x 'net gro
 
 ## Default Output:
 ```
-$ ./smbmap.py -H 192.168.12.123 -u administrator -p asdf1234
-[+] Finding open SMB ports....
-[+] User SMB session established on 192.168.86.39...
-[+] IP: 192.168.86.39:445	Name: biffhenderson-pc.lan
-	Disk                                Permissions	    Comment
-	----                                -----------	    -------
-	ADMIN$                              READ, WRITE	    Remote Admin
-	C$                                  READ, WRITE	    Default share
-	IPC$                                NO ACCESS	    Remote IPC
-	Users                               READ, WRITE
+$ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234                                         
+
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+ -----------------------------------------------------------------------------
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+                     https://github.com/ShawnDEvans/smbmap
+
+[*] Detected 1 hosts serving SMB                                                                                                  
+[*] Established 1 SMB connections(s) and 1 authentidated session(s)                                                      
+                                                                                                                                            
+[+] IP: 192.168.86.214:445	Name: shawnevans-pc.lan   	Status: ADMIN!!!   	
+	Disk                                                  	Permissions	Comment
+	----                                                  	-----------	-------
+	ADMIN$                                            	READ, WRITE	Remote Admin
+	C$                                                	READ, WRITE	Default share
+	IPC$                                              	NO ACCESS	Remote IPC
+	MS Publisher Color Printer                        	NO ACCESS	MS Publisher Color Printer
+	print$                                            	READ, WRITE	Printer Drivers
+	Temp                                              	READ, WRITE	
+	Users                                             	READ, WRITE
 ```
 
 ## Command execution:
@@ -148,28 +172,59 @@ The command completed successfully.
 
 ## Non recursive path listing (ls):
 ```
-$ python smbmap.py -H 172.16.0.24 -u Administrator -p 'changeMe' -r 'C$/Users'
-[+] Finding open SMB ports....
-[+] User SMB session established...
-[+] IP: 172.16.0.24:445 Name: 172.16.0.24
-    Disk                                                    Permissions
-    ----                                                    -----------
-    C$                                                      READ, WRITE
-    .Users
-    dw--w--w--                0 Wed Apr 29 13:15:25 2015    .
-    dw--w--w--                0 Wed Apr 29 13:15:25 2015    ..
-    dr--r--r--                0 Wed Apr 22 14:50:36 2015    Administrator
-    dr--r--r--                0 Thu Apr  9 14:46:57 2015    All Users
-    dw--w--w--                0 Thu Apr  9 14:46:49 2015    Default
-    dr--r--r--                0 Thu Apr  9 14:46:57 2015    Default User
-    fr--r--r--              174 Thu Apr  9 14:44:01 2015    desktop.ini
-    dw--w--w--                0 Thu Apr  9 14:46:49 2015    Public
-    dr--r--r--                0 Wed Apr 22 13:33:01 2015    wingus
+$ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234 -r c$ -q     
+
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+ -----------------------------------------------------------------------------
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+                     https://github.com/ShawnDEvans/smbmap
+
+[*] Detected 1 hosts serving SMB                                                                                                  
+[*] Established 1 SMB connections(s) and 1 authentidated session(s)
+                                                                                                                                            
+[+] IP: 192.168.86.214:445	Name: shawnevans-pc.lan   	Status: ADMIN!!!   	
+	Disk                                                  	Permissions	Comment
+	----                                                  	-----------	-------
+	ADMIN$                                            	READ, WRITE	Remote Admin
+	C$                                                	READ, WRITE	Default share
+	./C$
+	dr--r--r--                0 Wed Apr 22 14:50:29 2015	$Recycle.Bin
+	fr--r--r--             4284 Wed Oct  3 10:16:24 2018	ActivityLog.xsl
+	dr--r--r--                0 Tue Nov 21 10:47:06 2023	Config.Msi
+	dr--r--r--                0 Thu Apr  9 14:46:57 2015	Documents and Settings
+	dr--r--r--                0 Mon Feb 15 16:45:44 2021	iDEFENSE
+	dr--r--r--                0 Thu Sep 24 20:52:23 2015	nasm
+	fr--r--r--       2513149952 Tue Nov 21 13:21:16 2023	pagefile.sys
+	dr--r--r--                0 Thu Apr  9 14:46:48 2015	PerfLogs
+	dw--w--w--                0 Mon Oct 30 09:20:53 2023	Program Files
+	dw--w--w--                0 Fri Nov 17 03:27:46 2023	Program Files (x86)
+	dr--r--r--                0 Wed Jun 14 13:39:51 2023	ProgramData
+	dr--r--r--                0 Mon Oct  1 12:05:49 2018	Python27
+	dr--r--r--                0 Thu Apr  9 13:49:31 2015	Recovery
+	dr--r--r--                0 Thu Oct 15 13:04:27 2015	Scripts
+	dr--r--r--                0 Tue Nov 21 11:13:24 2023	System Volume Information
+	fr--r--r--          5194752 Mon Jan 18 11:12:13 2016	System.Management.Automation.dll
+	fr--r--r--                0 Fri May 19 13:51:42 2023	TBIWYRVUOD.txt
+	dr--r--r--                0 Thu Nov 23 13:04:51 2023	Temp
+	fr--r--r--            15812 Wed Oct  3 10:16:45 2018	temp.log
+	fr--r--r--               18 Thu Feb 13 15:55:55 2020	test.txt
+	dr--r--r--                0 Wed Jun 21 12:43:46 2023	Tools
+	dw--w--w--                0 Thu Nov 23 13:04:51 2023	Users
+	dr--r--r--                0 Thu Nov 23 13:04:51 2023	Windows
+	print$                                            	READ, WRITE	Printer Drivers
+	Temp                                              	READ, WRITE	
+	Users                                             	READ, WRITE	
 ```
 
 ## Scan for SMB signing support
 ```
-shawnevans@pop-os:~/tools/smbmap/smbmap$ ./smbmap.py --host-file local.txt --signing
+$ ./smbmap.py --host-file local.txt --signing
 
     ________  ___      ___  _______   ___      ___       __         _______
    /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
@@ -190,7 +245,7 @@ shawnevans@pop-os:~/tools/smbmap/smbmap$ ./smbmap.py --host-file local.txt --sig
 ```
 ## Get version info
 ```
-shawnevans@pop-os:~/tools/smbmap/smbmap$ ./smbmap.py --host-file local.txt -v
+$ ./smbmap.py --host-file local.txt -v
 
     ________  ___      ___  _______   ___      ___       __         _______
    /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\

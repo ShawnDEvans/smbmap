@@ -778,7 +778,7 @@ class SMBMap():
             return result
         except:
             exc_type, exc_obj, exc_tb = sys.exc_info()
-            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+            print('[!] Something weird happened on ({}) {} on line {}'.format(host, e, exc_tb.tb_lineno))
             sys.stdout.flush()
             return none
 
@@ -1055,7 +1055,7 @@ def get_shares( share_args ):
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+            print('[!] Something weird happened on ({}) {} on line {}'.format(share_args['host'], e, exc_tb.tb_lineno))
             sys.stdout.flush()
     return {}
 
@@ -1127,7 +1127,7 @@ def list_path( list_args ):
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print('[!] Something weird happened: {} on line {}'.format(e, exc_tb.tb_lineno))
+        print('[!] Something weird happened on ({}) {} on line {}'.format(host, e, exc_tb.tb_lineno))
         sys.stdout.flush()
 
 def download_file(smbconn, path):
@@ -1410,13 +1410,15 @@ def main():
             try:
                 host_list = [ str(ip) for ip in ipaddress.ip_network(args.host, False).hosts() ]
             except Exception as e:
-                print('[!] Invalid host...')
+                print(f'[!] Invalid CIDR or host {args.host}')
                 sys.exit(1)
-        elif socket.gethostbyname(args.host):
-            host_list.append(args.host)
         else:
-            print('[!] Invalid host...')
-            sys.exit(1)
+            try:
+                if socket.gethostbyname(args.host):
+                    host_list.append(args.host)
+            except socket.gaierror as e:
+                print(f'[!] Name or service not known ({args.host})')
+                sys.exit(1)
 
     mysmb.loader = Loader('Checking for open ports...')
     mysmb.loading = True
@@ -1426,6 +1428,7 @@ def main():
         host_list = porty_time.map(find_open_ports, host_list)
         print('[*]','Detected {} hosts serving SMB'.format(sum(im_open is not False for im_open in host_list)))
     else:
+        mysmb.loader.terminate()
         print('[!] No valid hosts provided')
         sys.exit(1)
 
@@ -1548,7 +1551,8 @@ def main():
                             smb_tree[host][share_drive_contents]['contents'] = path_list[host][share_drive_contents]
 
             if not args.pattern:
-                mysmb.kill_loader()
+                mysmb.loader.update('Finished!')
+                mysmb.loader.pause()
                 to_string(smb_tree, mysmb)
 
         if args.version:
