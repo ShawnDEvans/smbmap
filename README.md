@@ -223,7 +223,7 @@ $ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234 -r c$ -q
 ```
 
 ## Recursive listing 
-    ```
+```
 $ ./smbmap.py -H 192.168.86.179 -u Administrator -p asdf1234 -r Tools --depth 2 --no-banner -q
 [*] Detected 1 hosts serving SMB                                                                                                  
 [*] Established 1 SMB connections(s) and 1 authentidated session(s)
