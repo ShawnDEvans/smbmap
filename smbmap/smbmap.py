@@ -1272,7 +1272,7 @@ def main():
     mex_group = sgroup.add_mutually_exclusive_group(required=True)
     pass_group = sgroup.add_mutually_exclusive_group()
     kerb_group = parser.add_argument_group('Kereros settings')
-    mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP of host", default=False)
+    mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP or FQDN", default=False)
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
 
     sgroup.add_argument("-u","--username", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
@@ -1396,16 +1396,17 @@ def main():
                 host = host.strip()
                 if host.find('/') > 0:
                     try:
-                        host_list.extend([ str(ip) for ip in ipaddress.ip_network(host, False).hosts() ])
+                        host_list = [ str(ip) for ip in ipaddress.ip_network(host, False).hosts() ]
                     except Exception as e:
-                        print('[!] Invalid host {}'.format(host))
-                        continue
-                elif socket.gethostbyname(host):
-                    host_list.append(host)
+                        print(f'[!] Invalid CIDR or host {host}')
                 else:
-                    print('[!] Invalid host {}'.format(host))
+                    try:
+                        if socket.gethostbyname(host):
+                            host_list.append(host)
+                    except socket.gaierror as e:
+                        print(f'[!] Name or service not known ({host})')
 
-    if args.host:
+    if args.host and not args.hostfile:
         if args.host.find('/') > 0:
             try:
                 host_list = [ str(ip) for ip in ipaddress.ip_network(args.host, False).hosts() ]

@@ -191,8 +191,8 @@ $ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234 -r c$ -q
 [+] IP: 192.168.86.214:445	Name: shawnevans-pc.lan   	Status: ADMIN!!!   	
 	Disk                                                  	Permissions	Comment
 	----                                                  	-----------	-------
-	ADMIN$                                            	READ, WRITE	Remote Admin
-	C$                                                	READ, WRITE	Default share
+	ADMIN$                                                 	READ, WRITE	Remote Admin
+	C$                                                    	READ, WRITE	Default share
 	./C$
 	dr--r--r--                0 Wed Apr 22 14:50:29 2015	$Recycle.Bin
 	fr--r--r--             4284 Wed Oct  3 10:16:24 2018	ActivityLog.xsl
@@ -220,6 +220,89 @@ $ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234 -r c$ -q
 	print$                                            	READ, WRITE	Printer Drivers
 	Temp                                              	READ, WRITE	
 	Users                                             	READ, WRITE	
+```
+
+## Recursive listing 
+    ```
+$ ./smbmap.py -H 192.168.86.179 -u Administrator -p asdf1234 -r Tools --depth 2 --no-banner -q
+[*] Detected 1 hosts serving SMB                                                                                                  
+[*] Established 1 SMB connections(s) and 1 authentidated session(s)
+                                                                                                                                            
+[+] IP: 192.168.86.179:445	Name: desktop-m8n2dcc.lan 	Status: ADMIN!!!   	
+	Disk                                                  	Permissions	Comment
+	----                                                  	-----------	-------
+	ADMIN$                                            	READ, WRITE	Remote Admin
+	C                                                 	READ ONLY	
+	C$                                                	READ, WRITE	Default share
+	IPC$                                              	READ ONLY	Remote IPC
+	Tools                                             	READ, WRITE	
+	./Tools
+	dr--r--r--                0 Fri Nov 24 08:51:45 2023	.
+	dr--r--r--                0 Fri Nov 24 08:51:45 2023	..
+	fr--r--r--                0 Fri May 19 13:39:58 2023	AZNJSOWDQU
+	dr--r--r--                0 Mon May 15 15:34:30 2023	CVE-2020-0688_EXP
+	fr--r--r--            13821 Mon May 15 15:34:30 2023	Debug.txt
+	dr--r--r--                0 Mon May 15 15:34:30 2023	diskmon
+	fr--r--r--            13821 Mon May 15 15:34:30 2023	Errors.txt
+	fr--r--r--                0 Fri May 19 13:42:42 2023	GNDBLUQZMA.txt
+	fr--r--r--                0 Fri May 19 13:40:56 2023	HOQVWGAXEG
+	fr--r--r--             2833 Mon May 15 15:34:30 2023	kiwi_passwords.yar
+	fr--r--r--             2850 Mon May 15 15:34:30 2023	mimicom.idl
+	dr--r--r--                0 Mon May 15 15:34:30 2023	portmon
+	dr--r--r--                0 Mon May 15 15:34:30 2023	procexplorer
+	dr--r--r--                0 Mon May 15 15:34:30 2023	ProcMon
+	fr--r--r--             4951 Mon May 15 15:34:30 2023	README.md
+	fr--r--r--             4605 Mon May 15 15:34:30 2023	README.txt
+	fr--r--r--                0 Fri May 19 13:37:17 2023	RZFNUHSYET
+	fr--r--r--           123515 Mon May 15 15:34:30 2023	SharePoint - URL Extensions - 18MAR2012.pdf
+	fr--r--r--             2810 Mon May 15 15:34:30 2023	SharePoint-UrlExtensions-18Mar2012.txt
+	fr--r--r--          3028050 Mon May 15 15:34:30 2023	SharePointURLBrute v1.1.exe
+	fr--r--r--             8423 Mon May 15 15:34:30 2023	SharePointURLBrute v1.1.pl
+	fr--r--r--              116 Mon May 15 15:34:30 2023	UrlsFound.txt
+	dr--r--r--                0 Mon May 15 15:34:30 2023	Win32
+	dr--r--r--                0 Mon May 15 15:34:30 2023	x64
+	dr--r--r--                0 Mon May 15 15:34:30 2023	ysoserial
+	./Tools//CVE-2020-0688_EXP
+	dr--r--r--                0 Mon May 15 15:34:30 2023	.
+	dr--r--r--                0 Mon May 15 15:34:30 2023	..
+	dr--r--r--                0 Mon May 15 15:34:30 2023	.git
+	fr--r--r--             4756 Mon May 15 15:34:30 2023	CVE-2020-0688_EXP.py
+	fr--r--r--                0 Mon May 15 15:34:30 2023	nopsec.test'
+	fr--r--r--             2169 Mon May 15 15:34:30 2023	README.md
+	dr--r--r--                0 Mon May 15 15:34:30 2023	ysoserial-1.32
+
+```
+
+## Recursive Filename Pattern Search
+```
+$ ./smbmap.py -H 192.168.86.179 -u Administrator -p asdf1234 -r 'c$/program files' --depth 2 -A '(password|config)'
+
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+ -----------------------------------------------------------------------------
+     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+                     https://github.com/ShawnDEvans/smbmap
+
+[*] Detected 1 hosts serving SMB                                                                                                  
+[*] Established 1 SMB connections(s) and 1 authentidated session(s)
+[*] Performing file name pattern match!.                                                                                                    
+[+] Match found! Downloading: C$/program files/Amazon Web Services, Inc/Amazon WorkSpaces/Microsoft.Extensions.Configuration.Abstractions.dll
+[+] Starting download: C$\program files\Amazon Web Services, Inc\Amazon WorkSpaces\Microsoft.Extensions.Configuration.Abstractions.dll (21368 bytes)
+[+] File output to: /home/shawnevans/tools/smbmap/smbmap/192.168.86.179-C_program files_Amazon Web Services, Inc_Amazon WorkSpaces_Microsoft.Extensions.Configuration.Abstractions.dll
+[+] Match found! Downloading: C$/program files/Amazon Web Services, Inc/Amazon WorkSpaces/Microsoft.Extensions.Configuration.Binder.dll
+[+] Starting download: C$\program files\Amazon Web Services, Inc\Amazon WorkSpaces\Microsoft.Extensions.Configuration.Binder.dll (25464 bytes)
+[+] File output to: /home/shawnevans/tools/smbmap/smbmap/192.168.86.179-C_program files_Amazon Web Services, Inc_Amazon WorkSpaces_Microsoft.Extensions.Configuration.Binder.dll
+[+] Match found! Downloading: C$/program files/Amazon Web Services, Inc/Amazon WorkSpaces/Microsoft.Extensions.Configuration.dll
+[+] Starting download: C$\program files\Amazon Web Services, Inc\Amazon WorkSpaces\Microsoft.Extensions.Configuration.dll (27512 bytes)
+[+] File output to: /home/shawnevans/tools/smbmap/smbmap/192.168.86.179-C_program files_Amazon Web Services, Inc_Amazon WorkSpaces_Microsoft.Extensions.Configuration.dll
+[+] Match found! Downloading: C$/program files/Amazon Web Services, Inc/Amazon WorkSpaces/Microsoft.Extensions.Logging.Configuration.dll
+[+] Starting download: C$\program files\Amazon Web Services, Inc\Amazon WorkSpaces\Microsoft.Extensions.Logging.Configuration.dll (20344 bytes)
+
 ```
 
 ## Scan for SMB signing support
