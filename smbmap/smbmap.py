@@ -1276,7 +1276,7 @@ def main():
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
 
     sgroup.add_argument("-u","--username", metavar="USERNAME", dest='user', default='', help="Username, if omitted null session assumed")
-    pass_group.add_argument("-p", "--password", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash")
+    pass_group.add_argument("-p", "--password", metavar="PASSWORD", dest='passwd', default='', help="Password or NTLM hash, format is LMHASH:NTHASH")
     pass_group.add_argument("--prompt", action='store_true', default=False, help="Prompt for a password")
     kerb_group.add_argument("-k", "--kerberos", action='store_true', dest='kerberos_auth', default=False, help="Use Kerberos authentication")
     kerb_group.add_argument("--no-pass", dest='no_pass', action='store_true', default=False, help="Use CCache file (export KRB5CCNAME='~/current.ccache')")
