@@ -36,30 +36,30 @@ usage: smbmap [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | --p
 ## Help
 ```
 usage: smbmap.py [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | --prompt] [-k] [--no-pass] [--dc-ip IP or Host] [-s SHARE] [-d DOMAIN] [-P PORT] [-v] [--signing] [--admin] [--no-banner] [--no-color] [--no-update]
-                 [--timeout SCAN_TIMEOUT] [-x COMMAND] [--mode CMDMODE] [-L | -r [PATH]] [-g FILE | -A PATTERN | --csv FILE] [--dir-only] [--no-write-check] [-q] [--depth DEPTH] [--exclude SHARE [SHARE ...]] [-F PATTERN]
+                 [--timeout SCAN_TIMEOUT] [-x COMMAND] [--mode CMDMODE] [-L | -r [PATH]] [-g FILE | --csv FILE] [--dir-only] [--no-write-check] [-q] [--depth DEPTH] [--exclude SHARE [SHARE ...]] [-A PATTERN] [-F PATTERN]
                  [--search-path PATH] [--search-timeout TIMEOUT] [--download PATH] [--upload SRC DST] [--delete PATH TO FILE] [--skip]
 
     ________  ___      ___  _______   ___      ___       __         _______
    /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
-  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+  (:   \___/  \   \  //   |(. |_)  🙂 \   \  //   |    /    \      (. |__) 🙂
    \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
     __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
-   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+   /" \   🙂 |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
- -----------------------------------------------------------------------------
-     SMBMap - Samba Share Enumerator | Shawn Evans - ShawnDEvans@gmail.com
+-----------------------------------------------------------------------------
+SMBMap - Samba Share Enumerator v1.10.3 | Shawn Evans - ShawnDEvans@gmail.com<mailto:ShawnDEvans@gmail.com>
                      https://github.com/ShawnDEvans/smbmap
 
 options:
   -h, --help            show this help message and exit
 
 Main arguments:
-  -H HOST               IP of host
+  -H HOST               IP or FQDN
   --host-file FILE      File containing a list of hosts
   -u USERNAME, --username USERNAME
                         Username, if omitted null session assumed
   -p PASSWORD, --password PASSWORD
-                        Password or NTLM hash
+                        Password or NTLM hash, format is LMHASH:NTHASH
   --prompt              Prompt for a password
   -s SHARE              Specify a share (default C$), ex 'C$'
   -d DOMAIN             Domain name (default WORKGROUP)
@@ -90,7 +90,6 @@ Shard drive Search:
   -L                    List all drives on the specified host, requires ADMIN rights.
   -r [PATH]             Recursively list dirs and files (no share\path lists the root of ALL shares), ex. 'email/backup'
   -g FILE               Output to a file in a grep friendly format, used with -r (otherwise it outputs nothing), ex -g grep_out.txt
-  -A PATTERN            Define a file name pattern (regex) that auto downloads a file on a match (requires -r), not case sensitive, ex '(web|global).(asax|config)'
   --csv FILE            Output to a CSV file, ex --csv shares.csv
   --dir-only            List only directories, ommit files.
   --no-write-check      Skip check to see if drive grants WRITE access.
@@ -98,6 +97,7 @@ Shard drive Search:
   --depth DEPTH         Traverse a directory tree to a specific depth. Default is 1 (root node).
   --exclude SHARE [SHARE ...]
                         Exclude share(s) from searching and listing, ex. --exclude ADMIN$ C$'
+  -A PATTERN            Define a file name pattern (regex) that auto downloads a file on a match (requires -r), not case sensitive, ex '(web|global).(asax|config)'
 
 File Content Search:
   Options for searching the content of files (must run as root), kind of experimental
@@ -121,7 +121,6 @@ Examples:
 $ python smbmap.py -u jsmith -p password1 -d workgroup -H 192.168.0.1
 $ python smbmap.py -u jsmith -p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' -H 172.16.0.20
 $ python smbmap.py -u 'apadmin' -p 'asdf1234!' -d ACME -Hh 10.1.3.30 -x 'net group "Domain Admins" /domain'
-
 ```
 
 ## Default Output:
