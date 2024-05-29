@@ -60,10 +60,10 @@ USE_CCACHE = False
 banner = r"""
     ________  ___      ___  _______   ___      ___       __         _______
    /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
-  (:   \___/  \   \  //   |(. |_)  🙂 \   \  //   |    /    \      (. |__) 🙂
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
    \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
     __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
-   /" \   🙂 |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
 -----------------------------------------------------------------------------
 SMBMap - Samba Share Enumerator v1.10.2 | Shawn Evans - ShawnDEvans@gmail.com<mailto:ShawnDEvans@gmail.com>
@@ -438,7 +438,7 @@ class CMDEXEC:
             self.__lmhash, self.__nthash = hashes.split(':')
 
     def run(self, remoteName, remoteHost):
-        stringbinding = 'ncacn_np:%s[\pipe\svcctl]' % remoteName
+        stringbinding = 'ncacn_np:%s[\\pipe\\svcctl]' % remoteName
         logging.debug('StringBinding %s'%stringbinding)
         rpctransport = transport.DCERPCTransportFactory(stringbinding)
         rpctransport.set_dport(self.__port)
@@ -637,14 +637,14 @@ class SMBMap():
             if len(tmp_dir) == 0:
                 tmp_dir = 'C:\\Windows\\Temp'
 
-            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\*.* -Recurse -Exclude *.dll,*.exe,*.msi,*.jpg,*.gif,*.bmp,*.png,*.mp3,*.wav | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name)
+            tmp_bat_cmd = 'powershell -NoLogo -ExecutionPolicy bypass -Command " & {}Get-ChildItem {}\\*.* -Recurse -Exclude *.dll,*.exe,*.msi,*.jpg,*.gif,*.bmp,*.png,*.mp3,*.wav | Select-String -Pattern \'{}\' | Select-Object -Unique Path | out-string -width 220{}" 2>nul > {}\\{}.txt'.format('{', search_path, pattern, '}', tmp_dir, job_name)
             tmp_bat = open('./{}/{}.bat'.format(PSUTIL_DIR, job_name), 'w')
             tmp_bat.write(tmp_bat_cmd)
             tmp_bat.close()
 
             ps_command = 'powershell -ExecutionPolicy bypass -NoLogo -command "Start-Process """cmd.exe""" """/c \\\\{}\\{}\\{}.bat<file://%7b%7d/%7b%7d/%7b%7d.bat>""" "'.format(myIPaddr, PSUTIL_SHARE, job_name)
             success = self.exec_command(host, share, ps_command, disp_output=False)
-            print('[+] Job {} started on {}, result will be stored at {}\{}.txt'.format(job_name, host, tmp_dir, job_name))
+            print('[+] Job {} started on {}, result will be stored at {}\\{}.txt'.format(job_name, host, tmp_dir, job_name))
             proc_id = self.get_job_procid(host, share, tmp_dir, job_name)
             if len(proc_id) > 0:
                 proc_id = [j.strip() for j in proc_id.split('\n') if len(j) > 0]
@@ -659,7 +659,7 @@ class SMBMap():
     def get_job_procid(self, host, share, path, job):
         try:
             myIPaddr = self.get_ip_address()
-            file_path = '{}\{}.txt'.format(path, job)
+            file_path = '{}\\{}.txt'.format(path, job)
             command = 'powershell -NoLogo -ExecutionPolicy bypass -File \\\\{}\\{}\\Get-FileLockProcess.ps1<file://%7b%7d/%7b%7d/Get-FileLockProcess.ps1> "{}"'.format(myIPaddr, PSUTIL_SHARE, file_path)
             result = self.exec_command(host, share, command, disp_output=False)
             return result
@@ -677,10 +677,10 @@ class SMBMap():
         while len(list(self.jobs.keys())) > 0:
             try:
                 for job in list(self.jobs.keys()):
-                    isItThere = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "if exist {}\{}.txt echo ImHere"'.format(self.jobs[job]['tmp'], job), disp_output=False)
-                    result = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "2>nul (>>{}\{}.txt (call )) && (echo not locked) || (echo locked)"'.format(self.jobs[job]['tmp'], job), disp_output=False)
+                    isItThere = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "if exist {}\\{}.txt echo ImHere"'.format(self.jobs[job]['tmp'], job), disp_output=False)
+                    result = self.exec_command(self.jobs[job]['host'], self.jobs[job]['share'], 'cmd /c "2>nul (>>{}\\{}.txt (call )) && (echo not locked) || (echo locked)"'.format(self.jobs[job]['tmp'], job), disp_output=False)
                     if 'not locked' ==  result.strip() and isItThere.strip() == 'ImHere':
-                        dl_target = '%s%s\%s.txt' % (self.jobs[job]['share'], self.jobs[job]['tmp'][2:], job)
+                        dl_target = '%s%s\\%s.txt' % (self.jobs[job]['share'], self.jobs[job]['tmp'][2:], job)
                         host_dest = download_file(self.hosts[self.jobs[job]['host']]['smbconn'][0], dl_target)
                         counter += 1
                         self.search_output_buffer += 'Host: %s \t\tPattern: %s\n' % (self.jobs[job]['host'], self.jobs[job]['pattern'])
@@ -1321,7 +1321,7 @@ def main():
     sgroup3 = parser.add_argument_group("Shard drive Search", "Options for searching/enumerating the share of the specified host(s)")
     mex_group2 = sgroup3.add_mutually_exclusive_group()
     mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host, requires ADMIN rights.")
-    mex_group2.add_argument("-r", metavar="PATH", dest="recursive_dir_list", nargs="?", const='/', help="Recursively list dirs and files (no share\path lists the root of ALL shares), ex. 'email/backup'")
+    mex_group2.add_argument("-r", metavar="PATH", dest="recursive_dir_list", nargs="?", const='/', help="Recursively list dirs and files (no share\\path lists the root of ALL shares), ex. 'email/backup'")
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, used with -r (otherwise it outputs nothing), ex -g grep_out.txt")
     mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, ex --csv shares.csv")
@@ -1574,7 +1574,9 @@ def main():
 
             mysmb.loader.update('Finished!')
             mysmb.loader.pause()
-            to_string(smb_tree, mysmb)
+            if mysmb.verbose:
+                to_string(smb_tree, mysmb)
+
 
         if args.version:
             mysmb.loader.update('Grabbing version info.')
@@ -1599,7 +1601,7 @@ def main():
                 if args.csv:
                     mysmb.writer.writerow(signing_info)
 
-        if True in [ isinstance(arg, str) for arg in (args.dlPath, args.upload, args.delFile, args.list_drives, args.command) ]:
+        if True in [ ( isinstance(arg, str) | isinstance(arg, list)) for arg in (args.dlPath, args.upload, args.delFile, args.list_drives, args.command) ]:
             for host in list(mysmb.hosts.keys()):
                 is_admin = False
                 try:
