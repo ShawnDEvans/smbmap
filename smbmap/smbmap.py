@@ -66,7 +66,7 @@ banner = r"""
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
 -----------------------------------------------------------------------------
-SMBMap - Samba Share Enumerator v1.10.2 | Shawn Evans - ShawnDEvans@gmail.com<mailto:ShawnDEvans@gmail.com>
+SMBMap - Samba Share Enumerator v1.10.4 | Shawn Evans - ShawnDEvans@gmail.com<mailto:ShawnDEvans@gmail.com>
                      https://github.com/ShawnDEvans/smbmap
 """
 
@@ -438,7 +438,7 @@ class CMDEXEC:
             self.__lmhash, self.__nthash = hashes.split(':')
 
     def run(self, remoteName, remoteHost):
-        stringbinding = 'ncacn_np:%s[\\pipe\\svcctl]' % remoteName
+        tringbinding = 'ncacn_np:%s[\\pipe\\svcctl]' % remoteName
         logging.debug('StringBinding %s'%stringbinding)
         rpctransport = transport.DCERPCTransportFactory(stringbinding)
         rpctransport.set_dport(self.__port)
@@ -1577,7 +1577,6 @@ def main():
             if mysmb.verbose:
                 to_string(smb_tree, mysmb)
 
-
         if args.version:
             mysmb.loader.update('Grabbing version info.')
             mysmb.loader.pause()
@@ -1601,7 +1600,7 @@ def main():
                 if args.csv:
                     mysmb.writer.writerow(signing_info)
 
-        if True in [ ( isinstance(arg, str) | isinstance(arg, list)) for arg in (args.dlPath, args.upload, args.delFile, args.list_drives, args.command) ]:
+        if True in [ (isinstance(arg, str) | isinstance(arg, list)) for arg in (args.dlPath, args.upload, args.delFile, args.list_drives, args.command) ]:
             for host in list(mysmb.hosts.keys()):
                 is_admin = False
                 try:

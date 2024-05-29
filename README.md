@@ -47,7 +47,7 @@ usage: smbmap.py [-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD | 
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
 -----------------------------------------------------------------------------
-SMBMap - Samba Share Enumerator v1.10.3 | Shawn Evans - ShawnDEvans@gmail.com<mailto:ShawnDEvans@gmail.com>
+SMBMap - Samba Share Enumerator v1.10.4 | Shawn Evans - ShawnDEvans@gmail.com<mailto:ShawnDEvans@gmail.com>
                      https://github.com/ShawnDEvans/smbmap
 
 options:
