@@ -438,7 +438,7 @@ class CMDEXEC:
             self.__lmhash, self.__nthash = hashes.split(':')
 
     def run(self, remoteName, remoteHost):
-        tringbinding = 'ncacn_np:%s[\\pipe\\svcctl]' % remoteName
+        stringbinding = 'ncacn_np:%s[\pipe\svcctl]' % remoteName
         logging.debug('StringBinding %s'%stringbinding)
         rpctransport = transport.DCERPCTransportFactory(stringbinding)
         rpctransport.set_dport(self.__port)
