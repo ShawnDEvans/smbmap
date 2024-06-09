@@ -1292,7 +1292,7 @@ def main():
     sgroup = parser.add_argument_group("Main arguments")
     mex_group = sgroup.add_mutually_exclusive_group(required=True)
     pass_group = sgroup.add_mutually_exclusive_group()
-    kerb_group = parser.add_argument_group('Kereros settings')
+    kerb_group = parser.add_argument_group('Kerberos settings')
     mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP or FQDN", default=False)
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
 
