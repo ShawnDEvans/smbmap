@@ -73,7 +73,7 @@ Main arguments:
   --timeout SCAN_TIMEOUT
                         Set port scan socket timeout. Default is .5 seconds
 
-Kereros settings:
+Kerberos settings:
   -k, --kerberos        Use Kerberos authentication
   --no-pass             Use CCache file (export KRB5CCNAME='~/current.ccache')
   --dc-ip IP or Host    IP or FQDN of DC
