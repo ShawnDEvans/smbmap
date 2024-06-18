@@ -1,0 +1,161 @@
+.TH SMBMAP "1" "August 2018" "smbmap 1.0.5" "User Commands"
+.SH NAME
+smbmap \- SMB enumeration tool
+.SH SYNOPSIS
+\fBsmbmap \fI[-h] (-H HOST | --host-file FILE) [-u USERNAME] [-p PASSWORD |--prompt] [-s SHARE] [-d DOMAIN]
+[-P PORT] [-v] [--admin] [--no-banner] [--no-color] [--no-update] [-x COMMAND][--mode CMDMODE]
+[-L | -r [PATH]] [-A PATTERN | -g FILE | --csv FILE] [--dir-only][--no-write-check]
+[-q] [--depth DEPTH] [--exclude SHARE [SHARE ...]] [-F PATTERN] [--search-path PATH]
+[--search-timeout TIMEOUT] [--download PATH] [--upload SRC DST] [--delete PATH TO FILE] [--skip]\fR
+.IP
+.SH DESCRIPTION
+SMBMap allows users to enumerate samba share drives across an entire domain. List share drives, drive permissions, share contents, upload/download functionality, file name auto-download pattern matching, and even execute remote commands. This tool was designed with pen testing in mind, and is intended to simplify searching for potentially sensitive data across large networks.
+.SH OPTIONS
+.SS "Main arguments:"
+.TP
+\fB\-H\fR HOST
+IP of host
+.TP
+\fB\-\-host\-file\fR FILE
+File containing a list of hosts
+.TP
+\fB\-u\fR USERNAME, \fB\-\-username\fR USERNAME
+Username, if omitted null session assumed
+.TP
+\fB\-p\fR PASSWORD, \fB\-\-password\fR PASSWORD
+Password or NTLM hash
+.TP
+\fB\-\-prompt\fR
+Prompt for a password
+.TP
+\fB\-s\fR SHARE
+Specify a share (default C$), ex 'C$'
+.TP
+\fB\-d\fR DOMAIN
+Domain name (default WORKGROUP)
+.TP
+\fB\-P\fR PORT
+SMB port (default 445)
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+Return the OS version of the remote host
+.TP
+\fB\-\-signing\fR
+Check if host has SMB signing disabled, enabled, or required
+.TP
+\fB\-\-admin\fR
+Just report if the user is an admin
+.TP
+\fB\-\-no\-banner\fR
+Removes the banner from the top of the output
+.TP
+\fB\-\-no\-color\fR
+Removes the color from output
+.TP
+\fB\-\-no\-update\fR
+Removes the "Working on it" message
+.TP
+\fB\-\-timeout\fR SCAN_TIMEOUT
+Set port scan socket timeout. Default is .5 seconds
+.SS "Kerberos settings:"
+.TP
+\fB\-k\fR, \fB\-\-kerberos\fR
+Use Kerberos authentication
+.TP
+\fB\-\-no\-pass\fR
+Use CCache file (export KRB5CCNAME='~/current.ccache')
+.TP
+\fB\-\-dc\-ip\fR IP or \fBHost\fR
+IP or FQDN of DC
+.SS "Command Execution:"
+.IP
+Options for executing commands on the specified host
+.TP
+\fB\-x\fR COMMAND
+Execute a command ex. 'ipconfig /all'
+.TP
+\fB\-\-mode\fR CMDMODE
+Set the execution method, wmi or psexec, default wmi
+.SS "Shard drive Search:"
+.IP
+Options for searching/enumerating the filesystem of the specified host
+.TP
+\fB\-L\fR
+List all drives on the specified host, requires ADMIN rights.
+.TP
+\fB\-r\fR [PATH]
+Recursively list dirs and files (no share\path lists the root of ALL shares), ex. 'email/backup'
+.TP
+\fB\-g\fR FILE
+Output to a file in a grep friendly format, used with -r (otherwise it outputs
+nothing), ex -g grep_out.txt
+.TP
+\fB\-A\fR PATTERN
+Define a file name pattern (regex) that auto downloads
+a file on a match (requires \fB\-r\fR), not case
+sensitive, ex '(web|global).(asax|config)'
+.TP
+\fB\-\-csv\fR FILE
+Output to a CSV file, ex --csv shares.csv
+.TP
+\fB\-\-dir\-only\fR
+List only directories, omit files
+.TP
+\fB\-\-no\-write\-check\fR
+Skip check to see if drive grants WRITE access
+.TP
+\fB\-q\fR
+Quiet verbose output. Only shows shares you have
+READ or WRITE on, and suppresses file listing when
+performing a search (\fB\-A\fR).
+.TP
+\fB\-\-depth\fR DEPTH
+Traverse a directory tree to a specific depth. Default is 1 (root node).
+.TP
+\fB\-\-exclude\fR SHARE [SHARE ...]
+Exclude share(s) from searching and listing, ex. --exclude ADMIN$ C$'
+.SS "File Content Search:"
+.IP
+Options for searching the content of files (must run as root), kind of experimental
+.TP
+\fB\-F\fR PATTERN
+File content search, \fB\-F\fR '[Pp]assword' (requries admin
+access to execute commands, and powershell on victim
+host)
+.TP
+\fB\-\-search\-path\fR PATH
+Specify drive/path to search (used with \fB\-F\fR, default
+C:\eUsers), ex 'D:\eHR\e'
+.TP
+\fB\-\-search-timeout\fR TIMEOUT
+Specifcy a timeout (in seconds) before the file search job gets killed. Default
+is 300 seconds
+.SS "Filesystem interaction:"
+.IP
+Options for interacting with the specified host's filesystem
+.TP
+\fB\-\-download\fR PATH
+Download a file from the remote system,
+ex.'C$\etemp\epasswords.txt'
+.TP
+\fB\-\-upload\fR SRC DST
+Upload a file to the remote system ex.
+\&'/tmp/payload.exe C$\etemp\epayload.exe'
+.TP
+\fB\-\-delete\fR PATH_TO_FILE
+Delete a remote file, ex. 'C$\etemp\emsf.exe'
+.TP
+\fB\-\-skip\fR
+Skip delete file confirmation prompt
+.SH EXAMPLES:
+\fB$ python smbmap.py \-u jsmith \-p password1 \-d workgroup \-H 192.168.0.1\fR
+.br
+\fB$ python smbmap.py \-u jsmith \-p 'aad3b435b51404eeaad3b435b51404ee:da76f2c4c96028b7a6111aef4a50a94d' \-H 172.16.0.20\fR
+.br
+\fB $ python smbmap.py \-u 'apadmin' \-p 'asdf1234!' \-d ACME \-H 10.1.3.30 \-x 'net group "Domain Admins" /domain'\fR
+.SH AUTHOR
+smbmap was developed by ShawnDEvans <ShawnDEvans@gmail.com>
+.PP
+This manual page was written by Samuel Henrique <samueloph@debian.org> for the
+Debian project, it was based on \fBsmbmap -h\fR output and can be used by other
+projects as well.
