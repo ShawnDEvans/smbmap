@@ -885,7 +885,7 @@ def find_open_ports(address):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(PORT_SCAN_TIMEOUT)
-        result = sock.connect_ex((address, 445))
+        result = sock.connect_ex((address, smb_port))
         if result == 0:
             sock.close()
             return address
@@ -1230,7 +1230,7 @@ def login(host):
         if host['port'] == 445:
             smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=3)
         else:
-            smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=3)
+            smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=3)
     except Exception as e:
         print('[!] Connection error on {}'.format(host['ip']))
 
@@ -1446,6 +1446,8 @@ def main():
                 print(f'[!] Name or service not known ({args.host})')
                 sys.exit(1)
 
+    global smb_port
+    smb_port = args.port
     mysmb.loader = Loader('Checking for open ports...')
     mysmb.loading = True
     mysmb.loader.start()
