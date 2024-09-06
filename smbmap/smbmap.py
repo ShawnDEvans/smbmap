@@ -66,7 +66,7 @@ banner = r"""
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
 -----------------------------------------------------------------------------
-SMBMap - Samba Share Enumerator v1.10.4 | Shawn Evans - ShawnDEvans@gmail.com<mailto:ShawnDEvans@gmail.com>
+SMBMap - Samba Share Enumerator v1.10.5 | Shawn Evans - ShawnDEvans@gmail.com
                      https://github.com/ShawnDEvans/smbmap
 """
 
@@ -776,7 +776,7 @@ class SMBMap():
                 executer = CMDEXEC(username=self.hosts[host]['user'], password=self.hosts[host]['passwd'],  hashes=hashes, share=share, command=command)
                 result = executer.run(host_name, host)
             return result
-        except:
+        except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print('[!] Something weird happened on ({}) {} on line {}'.format(host, e, exc_tb.tb_lineno))
             sys.stdout.flush()
@@ -1237,10 +1237,10 @@ def login(host):
     if smbconn:
         try:
             smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
-            return smbconn
         except Exception as e:
             if VERBOSE:
                 print('[!] Authentication error on {}'.format(host['ip']))
+        return smbconn
 
     return False
 
@@ -1292,7 +1292,7 @@ def main():
     sgroup = parser.add_argument_group("Main arguments")
     mex_group = sgroup.add_mutually_exclusive_group(required=True)
     pass_group = sgroup.add_mutually_exclusive_group()
-    kerb_group = parser.add_argument_group('Kereros settings')
+    kerb_group = parser.add_argument_group('Kerberos settings')
     mex_group.add_argument("-H", metavar="HOST", dest='host', type=str, help="IP or FQDN", default=False)
     mex_group.add_argument("--host-file", metavar="FILE", dest="hostfile", default=False, type=argparse.FileType('r'), help="File containing a list of hosts")
 
@@ -1627,7 +1627,11 @@ def main():
                         mysmb.loader.update('Executing {} command, hang tight...'.format(args.mode))
                         if is_admin:
                             cmd_output = mysmb.exec_command(host, args.share, args.command, False, mysmb.hosts[host]['name'], args.mode)
+                            mysmb.loader.pause()
                             if cmd_output:
+                                print('')
+                                print('[*]', 'Host: ', host)
+                                print('')
                                 print(cmd_output)
 
                 except Exception as e:
@@ -1635,8 +1639,8 @@ def main():
                     sys.stdout.flush()
                     pass
 
-        mysmb.loader.resume()
         mysmb.loader.update('Closing connections..')
+        mysmb.loader.resume()
         logoff_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
         logoff_pool = Pool()
         loggedoff = logoff_pool.map(close_smb_connection, logoff_args)
