@@ -66,7 +66,7 @@ banner = r"""
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
 -----------------------------------------------------------------------------
-SMBMap - Samba Share Enumerator v1.10.5 | Shawn Evans - ShawnDEvans@gmail.com
+SMBMap - Samba Share Enumerator v1.10.6 | Shawn Evans - ShawnDEvans@gmail.com
                      https://github.com/ShawnDEvans/smbmap
 """
 
@@ -895,8 +895,9 @@ def find_open_ports(address):
         return False
 
 def to_string(smb_tree, mysmb):
-    header = '\tDisk{}\tPermissions\tComment\n'.format(' '.ljust(50))
-    header += '\t----{}\t-----------\t-------'.format(' '.ljust(50))
+    if mysmb.verbose:
+        header = '\tDisk{}\tPermissions\tComment\n'.format(' '.ljust(50))
+        header += '\t----{}\t-----------\t-------'.format(' '.ljust(50))
     heads_up = False
     priv_status = ''
     try:
@@ -923,7 +924,7 @@ def to_string(smb_tree, mysmb):
                     share_name_privs = colored('NO ACCESS', 'red')
 
                 if mysmb.admin_only == False:
-                    if heads_up == False:
+                    if heads_up == False and mysmb.verbose:
                         print(' '*100)
                         print('[+] IP: {}:{}\tName: {}\t{}'.format(host, mysmb.hosts[host]['port'], mysmb.hosts[host]['name'].ljust(20), priv_status ))
                         print(header)
@@ -931,8 +932,8 @@ def to_string(smb_tree, mysmb):
 
                     if mysmb.verbose == True:
                         print('\t{}\t{}\t{}'.format(share.ljust(50), share_name_privs, smb_tree[host][share]['comment'] ) )
-                    elif mysmb.verbose == False and smb_tree[host][share]['privs'] != 'NO ACCESS':
-                        print('\t{}\t{}\t{}'.format(share.ljust(50), share_name_privs, smb_tree[host][share]['comment'] ) )
+                    #elif mysmb.verbose == False and smb_tree[host][share]['privs'] != 'NO ACCESS':
+                    #    print('\t{}\t{}\t{}'.format(share.ljust(50), share_name_privs, smb_tree[host][share]['comment'] ) )
 
                     if mysmb.csv and mysmb.recursive == False:
                         if ( mysmb.verbose == False and smb_tree[host][share]['privs'] != 'NO ACCESS') or mysmb.verbose == True:
@@ -948,7 +949,7 @@ def to_string(smb_tree, mysmb):
 
                     if mysmb.recursive:
                         for path in smb_tree[host][share]['contents'].keys():
-                            if mysmb.grepable == False and mysmb.csv == False:
+                            if mysmb.grepable == False and mysmb.csv == False and mysmb.verbose:
                                 if len(path) > 0 and path[0] == '/':
                                     print('\t./{}/{}'.format(share, path))
                                 else:
@@ -959,7 +960,7 @@ def to_string(smb_tree, mysmb):
                                 filesize = file_info['filesize']
                                 date = file_info['date']
                                 filename = file_info['filename']
-                                if mysmb.grepable == False and mysmb.csv == False and ((mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.dir_only == False)):
+                                if mysmb.verbose and mysmb.grepable == False and mysmb.csv == False and ((mysmb.dir_only == True and isDir == 'd') or ( (isDir == 'f' or isDir == 'd') and mysmb.dir_only == False)):
                                     print('\t%s%s--%s--%s-- %s %s\t%s' % (isDir, readonly, readonly, readonly, str(filesize).rjust(16), date, filename))
                                 if mysmb.grepable:
                                     if filename != '.' and filename != '..':
@@ -1574,7 +1575,7 @@ def main():
 
             mysmb.loader.update('Finished!')
             mysmb.loader.pause()
-            if mysmb.verbose:
+            if mysmb.verbose or mysmb.csv or mysmb.grepable:
                 to_string(smb_tree, mysmb)
 
         if args.version:
