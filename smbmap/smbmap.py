@@ -14,6 +14,7 @@ import ipaddress
 import inspect
 import csv
 import getpass
+import resource
 
 from threading import Thread, Event
 from multiprocessing.pool import Pool
@@ -40,7 +41,6 @@ from termcolor import colored as termcolored
 # Seriously, the most amazing Python library ever!!
 # Many thanks to that dev team
 
-import resource
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
 
@@ -66,7 +66,7 @@ banner = r"""
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
 -----------------------------------------------------------------------------
-SMBMap - Samba Share Enumerator v1.10.6 | Shawn Evans - ShawnDEvans@gmail.com
+SMBMap - Samba Share Enumerator v1.10.7 | Shawn Evans - ShawnDEvans@gmail.com
                      https://github.com/ShawnDEvans/smbmap
 """
 
@@ -913,7 +913,7 @@ def to_string(smb_tree, mysmb):
                 else:
                     priv_status = 'Status: ' + colored ('Authenticated', 'green')
             except:
-                priv_status = 'Status: ' + colored ('Authenticated', 'green')
+                priv_status = 'Status: ' + colored ('NULL Session', 'green')
 
             for share in smb_tree[host].keys():
                 if smb_tree[host][share]['privs'] == 'READ, WRITE':
@@ -1010,7 +1010,7 @@ def get_shares( share_args ):
     #    } ]
 
     share_tree = {}
-    if share_args['smbconn'].getSessionKey():
+    if share_args['smbconn'].getDialect():
         try:
             shareList = share_args['smbconn'].listShares()
             shares = []
@@ -1526,7 +1526,6 @@ def main():
 
             share_pool = Pool()
             share_args = [ { 'smbconn' : mysmb.hosts[host]['smbconn'][0] , 'host' : host, 'write_check' : args.write_check, 'exclude' : mysmb.exclude } for host in mysmb.hosts.keys() if len(mysmb.hosts[host]['smbconn']) > 0 ]
-
             mysmb.loader.update('Enumerating shares...')
 
             # this call returns an array of dict objects
