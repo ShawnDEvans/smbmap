@@ -1112,6 +1112,11 @@ def list_path( list_args ):
     else:
         path_list = list_args['path_list']
 
+    global LIST_PATH_TIMEOUT
+    if LIST_PATH_TIMEOUT and time.perf_counter() - LIST_PATH_START_TIME > LIST_PATH_TIMEOUT:
+        print(f'[!] List path timeout at \\\\{host}\\{share}\\{pwd} Aborting...')
+        return path_list
+
     try:
 
         raw_path_list = list_args['smbconn'].listPath(share, pwd)
@@ -1319,10 +1324,11 @@ def main():
     sgroup2.add_argument("-x", metavar="COMMAND", dest='command', help="Execute a command ex. 'ipconfig /all'")
     sgroup2.add_argument("--mode", metavar="CMDMODE", dest='mode', default='wmi', help="Set the execution method, wmi or psexec, default wmi", choices=['wmi','psexec'])
 
-    sgroup3 = parser.add_argument_group("Shard drive Search", "Options for searching/enumerating the share of the specified host(s)")
+    sgroup3 = parser.add_argument_group("Shared drive Search", "Options for searching/enumerating the share of the specified host(s)")
     mex_group2 = sgroup3.add_mutually_exclusive_group()
     mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host, requires ADMIN rights.")
     mex_group2.add_argument("-r", metavar="PATH", dest="recursive_dir_list", nargs="?", const='/', help="Recursively list dirs and files (no share\\path lists the root of ALL shares), ex. 'email/backup'")
+    sgroup3.add_argument('--list-dir-timeout', dest='recursive_dir_list_timeout', default=0, type=int, help='Specifcy a timeout (in seconds) before the recursive list dir and file terminates. Default is 0 (No timeout).')
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, used with -r (otherwise it outputs nothing), ex -g grep_out.txt")
     mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, ex --csv shares.csv")
@@ -1370,6 +1376,10 @@ def main():
     if args.scan_timeout:
         if args.scan_timeout > 0 and args.scan_timeout < 10:
             PORT_SCAN_TIMEOUT = args.scan_timeout
+
+    if isinstance(args.recursive_dir_list_timeout, int):
+        global LIST_PATH_TIMEOUT
+        LIST_PATH_TIMEOUT = args.recursive_dir_list_timeout
 
     lsshare = False
     lspath = False
@@ -1552,6 +1562,9 @@ def main():
                                 list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][index] , 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
                 if args.pattern:
                     print('[*] Performing file name pattern match! ')
+	
+                global LIST_PATH_START_TIME
+                LIST_PATH_START_TIME = time.perf_counter()
                 list_path_pool = Pool()
                 mysmb.loader.update('Traversing shares...')
                 all_paths_listed = list_path_pool.map(list_path, list_path_args)
