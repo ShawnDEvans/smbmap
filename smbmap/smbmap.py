@@ -15,6 +15,7 @@ import inspect
 import csv
 import getpass
 import resource
+import shutil
 
 from threading import Thread, Event
 from multiprocessing.pool import Pool
@@ -79,17 +80,19 @@ def colored(msg, *args, **kwargs):
 
 
 class Loader(Thread):
-    def __init__(self, msg='Working on it'):
+    def __init__(self, msg='Working on it', spinner='\\|/-'):
         Thread.__init__(self)
         self.__running = Event()
         self.__running.set()
         self.__flag = Event()
         self.__flag.set()
-        self._progress = '\\|/-\\|/-'
-        self._msg = '{}{}'.format(msg, ' '*100)
+        self._spinner = spinner
+        self._msg = msg
+        self._padding = 0
 
     def update(self, msg):
-        self._msg = '{}{}'.format(msg, ' '*100)
+        self._msg = msg
+        self.calculate_padding()
 
     def terminate(self):
         self.__flag.set()
@@ -101,18 +104,18 @@ class Loader(Thread):
     def resume(self):
         self.__flag.set()
 
-    def cleanup(self):
-        print(' '*100, end='\r')
-        print('\r', end='\r')
+    def calculate_padding(self):
+        terminal_width = shutil.get_terminal_size((80, 24)).columns
+        message_length = len(self._msg) + 10
+        self._padding = max(terminal_width - message_length, 0)
 
     def run(self):
         global SEND_UPDATE_MSG
         while self.__running.is_set():
-            for char in self._progress:
+            for char in self._spinner:
                 if SEND_UPDATE_MSG:
                     self.__flag.wait()
-                    print('[{}] {}'.format(char, self._msg), end='\r')
-                    print('\r', end='\r')
+                    print(f"[{char}] {self._msg}{' ' * self._padding}", end='\r', flush=True)
                     time.sleep(0.05)
 
 class SimpleSMBServer(Thread):
