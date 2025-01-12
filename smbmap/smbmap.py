@@ -104,6 +104,9 @@ class Loader(Thread):
     def resume(self):
         self.__flag.set()
 
+    def cleanup(self):
+        print(' ' * self._padding, end='\r')
+
     def calculate_padding(self):
         terminal_width = shutil.get_terminal_size((80, 24)).columns
         message_length = len(self._msg) + 10
