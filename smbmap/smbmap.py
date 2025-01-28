@@ -1368,6 +1368,7 @@ def main():
     if args.nocolor:
         USE_TERMCOLOR=False
     if args.noupdate:
+        global SEND_UPDATE_MSG
         SEND_UPDATE_MSG=False
 
     if args.prompt:
