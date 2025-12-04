@@ -888,6 +888,7 @@ def signal_handler(signal, frame):
 def find_open_ports(address):
     result = 1
     address = address.strip()
+    global PORT_SCAN_TIMEOUT
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(PORT_SCAN_TIMEOUT)
@@ -1382,6 +1383,7 @@ def main():
 
     if args.scan_timeout:
         if args.scan_timeout > 0 and args.scan_timeout < 10:
+            global PORT_SCAN_TIMEOUT
             PORT_SCAN_TIMEOUT = args.scan_timeout
 
     if isinstance(args.recursive_dir_list_timeout, int):
