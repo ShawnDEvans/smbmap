@@ -1170,7 +1170,7 @@ def list_path( list_args ):
                     continue
 
         return path_list
-    
+
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -1240,7 +1240,7 @@ def login_kerberos(host):
         smbconn._SMBConnection.signingRequiredj = True
         session = smbconn.getSessionKey()
         smbconn._SMBConnection.setSessionKey(session)
-    
+
     if smbconn:
         try:
             smbconn.kerberosLogin(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'], kdcHost=host['kdc'], useCache=USE_CCACHE)
@@ -1272,7 +1272,7 @@ def login(host):
             smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=3)
     except Exception as e:
         print('[!] Connection error on {}'.format(host['ip']))
-    
+
     if smbconn:
         try:
             smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
@@ -1593,7 +1593,7 @@ def main():
                                 list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][0], 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
                 if args.pattern:
                     print('[*] Performing file name pattern match! ')
-	
+
                 global LIST_PATH_START_TIME
                 LIST_PATH_START_TIME = time.perf_counter()
                 list_path_pool = Pool()
