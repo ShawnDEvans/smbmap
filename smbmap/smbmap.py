@@ -28,6 +28,7 @@ from impacket.dcerpc.v5.dcomrt import DCOMConnection
 from impacket.dcerpc.v5.dcom import wmi
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.smb3structs import *
+from impacket import nmb
 
 import ntpath
 import cmd
@@ -66,7 +67,7 @@ banner = r"""
    /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
   (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
 -----------------------------------------------------------------------------
-SMBMap - Samba Share Enumerator v1.10.7 | Shawn Evans - ShawnDEvans@gmail.com
+SMBMap - Samba Share Enumerator v1.10.8 | Shawn Evans - ShawnDEvans@gmail.com
                      https://github.com/ShawnDEvans/smbmap
 """
 
@@ -1022,10 +1023,17 @@ def get_shares( share_args ):
             host = share_args['host']
             share_tree[host] = {}
             for share in shares:
+                try:
+                    tree_id = share_args['smbconn'].connectTree(share[0])
+                except:
+                    tree_id = None
+                    pass
                 if share[0].lower() not in share_args['exclude']:
                     share_name = share[0]
                     share_comment = share[1]
                     share_tree[host][share_name] = {}
+                    if tree_id:
+                        share_tree[host][share_name]['tree_id'] = tree_id
                     canWrite = False
                     readonly = False
                     noaccess = False
@@ -1113,7 +1121,7 @@ def list_path( list_args ):
         path_list = list_args['path_list']
 
     try:
-
+        list_args['smbconn'].reconnect()
         raw_path_list = list_args['smbconn'].listPath(share, pwd)
         path_list[host][share][path] = []
         for item in raw_path_list:
@@ -1150,10 +1158,11 @@ def list_path( list_args ):
                     continue
 
         return path_list
+    
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print('[!] Something weird happened on ({}) {} on line {}'.format(host, e, exc_tb.tb_lineno))
+        print('[!] Unable to list //{}/{}/{}: {} on line {}'.format(host, share, pwd, e, exc_tb.tb_lineno))
         sys.stdout.flush()
 
 def download_file(smbconn, path):
@@ -1215,6 +1224,11 @@ def login_kerberos(host):
     except Exception as e:
             print('[!] Connection error on {}'.format(host['ip']))
 
+    if smbconn.getDialect() != '':
+        smbconn._SMBConnection.signingRequiredj = True
+        session = smbconn.getSessionKey()
+        smbconn._SMBConnection.setSessionKey(session)
+    
     if smbconn:
         try:
             smbconn.kerberosLogin(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'], kdcHost=host['kdc'], useCache=USE_CCACHE)
@@ -1225,23 +1239,35 @@ def login_kerberos(host):
 
     return False
 
+def get_server_name_pre_negotiatetion(ip):
+    try:
+        dummy = SMBConnection('*SMBSERVER', ip, manualNegotiation=True)
+        dummy.negotiateSession()
+        srv_data = dummy.getServerOSData()
+        name = srv_data.get('SrvNetBIOSName')
+        dummy.logoff()
+        return name
+    except:
+        return ip
+
 def login(host):
     smbconn = None
+    nbt_name = get_server_name_pre_negotiatetion(host['ip'])
     try:
         if host['port'] == 445:
-            smbconn = SMBConnection(host['ip'], host['ip'], sess_port=host['port'], timeout=3)
+            smbconn = SMBConnection(nbt_name, host['ip'], sess_port=host['port'], timeout=3)
         else:
             smbconn = SMBConnection('*SMBSERVER', host['host'], sess_port=host['port'], timeout=3)
     except Exception as e:
         print('[!] Connection error on {}'.format(host['ip']))
-
+    
     if smbconn:
         try:
             smbconn.login(host['user'], host['passwd'], host['domain'], host['lmhash'], host['nthash'])
+            return smbconn
         except Exception as e:
             if VERBOSE:
                 print('[!] Authentication error on {}'.format(host['ip']))
-        return smbconn
 
     return False
 
@@ -1541,15 +1567,11 @@ def main():
                     else:
                         continue
                     if len(host_shares[host].keys()) > 0:
-                        mysmb.hosts[host]['smbconn'][0].close()
-                        mysmb.hosts[host]['smbconn'].pop()
-                        share_conns = login_worker.map(login, [ mysmb.hosts[host] for index in range(0,len(host_shares[host].keys())) ] )
-                        mysmb.hosts[host]['smbconn'] = share_conns
                         for index, share_name in enumerate(host_shares[host].keys()):
                             if host_shares[host][share_name]['privs'] != 'NO ACCESS' and lsshare == '':
-                                list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][index] , 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
+                                list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][0], 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
                             elif host_shares[host][share_name]['privs'] != 'NO ACCESS' and share_name.lower() == lsshare.lower():
-                                list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][index] , 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
+                                list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][0], 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
                 if args.pattern:
                     print('[*] Performing file name pattern match! ')
                 list_path_pool = Pool()
