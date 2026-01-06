@@ -15,6 +15,7 @@ import inspect
 import csv
 import getpass
 import resource
+import shutil
 
 from threading import Thread, Event
 from multiprocessing.pool import Pool
@@ -80,17 +81,19 @@ def colored(msg, *args, **kwargs):
 
 
 class Loader(Thread):
-    def __init__(self, msg='Working on it'):
+    def __init__(self, msg='Working on it', spinner='\\|/-'):
         Thread.__init__(self)
         self.__running = Event()
         self.__running.set()
         self.__flag = Event()
         self.__flag.set()
-        self._progress = '\\|/-\\|/-'
-        self._msg = '{}{}'.format(msg, ' '*100)
+        self._spinner = spinner
+        self._msg = msg
+        self._padding = 0
 
     def update(self, msg):
-        self._msg = '{}{}'.format(msg, ' '*100)
+        self._msg = msg
+        self.calculate_padding()
 
     def terminate(self):
         self.__flag.set()
@@ -103,17 +106,20 @@ class Loader(Thread):
         self.__flag.set()
 
     def cleanup(self):
-        print(' '*100, end='\r')
-        print('\r', end='\r')
+        print(' ' * self._padding, end='\r')
+
+    def calculate_padding(self):
+        terminal_width = shutil.get_terminal_size((80, 24)).columns
+        message_length = len(self._msg) + 10
+        self._padding = max(terminal_width - message_length, 0)
 
     def run(self):
         global SEND_UPDATE_MSG
         while self.__running.is_set():
-            for char in self._progress:
+            for char in self._spinner:
                 if SEND_UPDATE_MSG:
                     self.__flag.wait()
-                    print('[{}] {}'.format(char, self._msg), end='\r')
-                    print('\r', end='\r')
+                    print(f"[{char}] {self._msg}{' ' * self._padding}", end='\r', flush=True)
                     time.sleep(0.05)
 
 class SimpleSMBServer(Thread):
@@ -883,6 +889,7 @@ def signal_handler(signal, frame):
 def find_open_ports(address):
     result = 1
     address = address.strip()
+    global PORT_SCAN_TIMEOUT
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(PORT_SCAN_TIMEOUT)
@@ -1120,6 +1127,11 @@ def list_path( list_args ):
     else:
         path_list = list_args['path_list']
 
+    global LIST_PATH_TIMEOUT
+    if LIST_PATH_TIMEOUT and time.perf_counter() - LIST_PATH_START_TIME > LIST_PATH_TIMEOUT:
+        print(f'[!] List path timeout at \\\\{host}\\{share}\\{pwd} Aborting...')
+        return path_list
+
     try:
         list_args['smbconn'].reconnect()
         raw_path_list = list_args['smbconn'].listPath(share, pwd)
@@ -1345,10 +1357,11 @@ def main():
     sgroup2.add_argument("-x", metavar="COMMAND", dest='command', help="Execute a command ex. 'ipconfig /all'")
     sgroup2.add_argument("--mode", metavar="CMDMODE", dest='mode', default='wmi', help="Set the execution method, wmi or psexec, default wmi", choices=['wmi','psexec'])
 
-    sgroup3 = parser.add_argument_group("Shard drive Search", "Options for searching/enumerating the share of the specified host(s)")
+    sgroup3 = parser.add_argument_group("Shared drive Search", "Options for searching/enumerating the share of the specified host(s)")
     mex_group2 = sgroup3.add_mutually_exclusive_group()
     mex_group2.add_argument("-L", dest='list_drives', action="store_true", help="List all drives on the specified host, requires ADMIN rights.")
     mex_group2.add_argument("-r", metavar="PATH", dest="recursive_dir_list", nargs="?", const='/', help="Recursively list dirs and files (no share\\path lists the root of ALL shares), ex. 'email/backup'")
+    sgroup3.add_argument('--list-dir-timeout', dest='recursive_dir_list_timeout', default=0, type=int, help='Specifcy a timeout (in seconds) before the recursive list dir and file terminates. Default is 0 (No timeout).')
     mex_group3 = sgroup3.add_mutually_exclusive_group()
     mex_group3.add_argument("-g", metavar="FILE", dest="grepable", default=False, help="Output to a file in a grep friendly format, used with -r (otherwise it outputs nothing), ex -g grep_out.txt")
     mex_group3.add_argument("--csv", metavar="FILE", dest="csv", default=False, help="Output to a CSV file, ex --csv shares.csv")
@@ -1388,6 +1401,7 @@ def main():
     if args.nocolor:
         USE_TERMCOLOR=False
     if args.noupdate:
+        global SEND_UPDATE_MSG
         SEND_UPDATE_MSG=False
 
     if args.prompt:
@@ -1395,7 +1409,12 @@ def main():
 
     if args.scan_timeout:
         if args.scan_timeout > 0 and args.scan_timeout < 10:
+            global PORT_SCAN_TIMEOUT
             PORT_SCAN_TIMEOUT = args.scan_timeout
+
+    if isinstance(args.recursive_dir_list_timeout, int):
+        global LIST_PATH_TIMEOUT
+        LIST_PATH_TIMEOUT = args.recursive_dir_list_timeout
 
     lsshare = False
     lspath = False
@@ -1574,6 +1593,9 @@ def main():
                                 list_path_args.append({ 'smbconn' : mysmb.hosts[host]['smbconn'][0], 'host' : host, 'share' : share_name, 'path' : lspath, 'path_list' : None, 'depth' : args.depth , 'dir_only' : mysmb.dir_only, 'pattern' : mysmb.pattern })
                 if args.pattern:
                     print('[*] Performing file name pattern match! ')
+	
+                global LIST_PATH_START_TIME
+                LIST_PATH_START_TIME = time.perf_counter()
                 list_path_pool = Pool()
                 mysmb.loader.update('Traversing shares...')
                 all_paths_listed = list_path_pool.map(list_path, list_path_args)
