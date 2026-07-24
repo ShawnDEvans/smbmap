@@ -139,7 +139,7 @@ $ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234
                      https://github.com/ShawnDEvans/smbmap
 
 [*] Detected 1 hosts serving SMB                                                                                                  
-[*] Established 1 SMB connections(s) and 1 authentidated session(s)                                                      
+[*] Established 1 SMB connections(s) and 1 authenticated session(s)                                                      
                                                                                                                                             
 [+] IP: 192.168.86.214:445	Name: shawnevans-pc.lan   	Status: ADMIN!!!   	
 	Disk                                                  	Permissions	Comment
@@ -185,7 +185,7 @@ $ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234 -r c$ -q
                      https://github.com/ShawnDEvans/smbmap
 
 [*] Detected 1 hosts serving SMB                                                                                                  
-[*] Established 1 SMB connections(s) and 1 authentidated session(s)
+[*] Established 1 SMB connections(s) and 1 authenticated session(s)
                                                                                                                                             
 [+] IP: 192.168.86.214:445	Name: shawnevans-pc.lan   	Status: ADMIN!!!   	
 	Disk                                                  	Permissions	Comment
@@ -225,7 +225,7 @@ $ ./smbmap.py -H 192.168.86.214 -u Administrator -p asdf1234 -r c$ -q
 ```
 $ ./smbmap.py -H 192.168.86.179 -u Administrator -p asdf1234 -r Tools --depth 2 --no-banner -q
 [*] Detected 1 hosts serving SMB                                                                                                  
-[*] Established 1 SMB connections(s) and 1 authentidated session(s)
+[*] Established 1 SMB connections(s) and 1 authenticated session(s)
                                                                                                                                             
 [+] IP: 192.168.86.179:445	Name: desktop-m8n2dcc.lan 	Status: ADMIN!!!   	
 	Disk                                                  	Permissions	Comment
@@ -288,7 +288,7 @@ $ ./smbmap.py -H 192.168.86.179 -u Administrator -p asdf1234 -r 'c$/program file
                      https://github.com/ShawnDEvans/smbmap
 
 [*] Detected 1 hosts serving SMB                                                                                                  
-[*] Established 1 SMB connections(s) and 1 authentidated session(s)
+[*] Established 1 SMB connections(s) and 1 authenticated session(s)
 [*] Performing file name pattern match!.                                                                                                    
 [+] Match found! Downloading: C$/program files/Amazon Web Services, Inc/Amazon WorkSpaces/Microsoft.Extensions.Configuration.Abstractions.dll
 [+] Starting download: C$\program files\Amazon Web Services, Inc\Amazon WorkSpaces\Microsoft.Extensions.Configuration.Abstractions.dll (21368 bytes)
@@ -320,7 +320,7 @@ $ ./smbmap.py --host-file local.txt --signing
                      https://github.com/ShawnDEvans/smbmap
 
 [*] Detected 3 hosts serving SMB                                                                                                  
-[*] Established 3 SMB connections(s) and 2 authentidated session(s)                                                      
+[*] Established 3 SMB connections(s) and 2 authenticated session(s)                                                      
 [-] 192.168.86.204  	signing enabled (not required)
 [!] 192.168.86.213  	signing disabled
 [+] 192.168.86.179  	signing required
@@ -341,7 +341,7 @@ $ ./smbmap.py --host-file local.txt -v
                      https://github.com/ShawnDEvans/smbmap
 
 [*] Detected 3 hosts serving SMB                                                                                                  
-[*] Established 3 SMB connections(s) and 2 authentidated session(s)                                                      
+[*] Established 3 SMB connections(s) and 2 authenticated session(s)                                                      
 [+] 192.168.86.204   is running Windows 6.1 Build 7601 (name:SHAWNEVANS-PC) (domain:SHAWNEVANS-PC)
 [+] 192.168.86.213   is running Windows 6.1 Build 7601 (name:SHAWNEVANS-PC) (domain:SHAWNEVANS-PC)
 [+] 192.168.86.179   is running Windows 10.0 Build 19041 (name:DESKTOP-M8N2DCC) (domain:DESKTOP-M8N2DCC)
