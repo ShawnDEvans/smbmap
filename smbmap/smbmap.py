@@ -18,7 +18,7 @@ import resource
 import shutil
 
 from threading import Thread, Event
-from multiprocessing.pool import Pool
+from multiprocessing.dummy import Pool
 from impacket.examples import logger
 from impacket import version, smbserver
 from impacket.smbserver import SRVSServer
